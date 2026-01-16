@@ -2,27 +2,30 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>El Enganche - Fútbol Amateur</title>
     
+    <!-- PWA Settings -->
+    <meta name="theme-color" content="#00ff55">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="El Enganche">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/431/431238.png">
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Babel para traducir JSX -->
+    <!-- Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <!-- Estilos base -->
     <style>
-        body { background-color: #111827; color: #e5e7eb; font-family: sans-serif; padding-bottom: 70px; /* Espacio para navbar inferior */ }
-        /* Scrollbar */
+        body { background-color: #111827; color: #e5e7eb; font-family: sans-serif; padding-bottom: 70px; }
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #1a1a1a; }
         ::-webkit-scrollbar-thumb { background: #00ff55; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #00cc44; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        
-        /* Loading/Error states */
         #root { min-height: 100vh; display: flex; flex-direction: column; }
         #error-display { display: none; padding: 20px; color: #ff6b6b; background: #2d1b1b; text-align: center; }
     </style>
@@ -30,7 +33,6 @@
 <body>
     <div id="error-display"></div>
     <div id="root">
-        <!-- Loader inicial mientras React arranca -->
         <div class="flex-1 flex items-center justify-center text-[#00ff55] animate-pulse">
             <svg class="w-10 h-10 animate-spin mr-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
@@ -39,9 +41,7 @@
         </div>
     </div>
 
-    <!-- Script Principal -->
     <script type="text/babel" data-type="module" data-presets="react">
-        // Importaciones desde ESM.SH para mayor compatibilidad
         import React, { useState, useEffect } from 'https://esm.sh/react@18.2.0';
         import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
         import { 
@@ -50,10 +50,9 @@
             Link as LinkIcon, User, LogOut, Mail, Lock, Trash2, Ban, Trophy, 
             Activity, ArrowLeft, HelpCircle, FileText, Lock as LockIcon, Bell, 
             CheckCircle, XCircle, Send, Crown, UserPlus, Share2, Edit2, Save, MinusCircle,
-            Home, Zap, ClipboardList, AlertTriangle
+            Home, Zap, ClipboardList, AlertTriangle, Download
         } from 'https://esm.sh/lucide-react@0.294.0';
         
-        // Importaciones Firebase
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { 
             getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged,
@@ -66,7 +65,6 @@
             orderBy, getDoc, setDoc, getDocs
         } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
-        // --- MANEJO DE ERRORES GLOBAL ---
         window.onerror = function(message, source, lineno, colno, error) {
             const display = document.getElementById('error-display');
             display.style.display = 'block';
@@ -74,7 +72,6 @@
             console.error(error);
         };
 
-        // --- CONFIGURACIÓN FIREBASE ---
         const getFirebaseConfig = () => {
             return {
                 apiKey: "AIzaSyC8att6xIu--GeDn7uY6gHkIrwUU1UhwpM",
@@ -86,17 +83,13 @@
             };
         };
 
-        // --- INICIALIZACIÓN ROBUSTA ---
         let app, auth, db;
         try {
             const firebaseConfig = getFirebaseConfig();
             app = initializeApp(firebaseConfig);
             auth = getAuth(app);
             db = getFirestore(app);
-        } catch (e) {
-            console.error("Error inicializando Firebase:", e);
-            document.getElementById('error-display').innerText = "Error conectando con la base de datos. (Ver consola)";
-        }
+        } catch (e) { console.error("Error init firebase", e); }
 
         const appId = 'el-enganche-web';
         const ADMIN_EMAILS = ["worlddigital2011@gmail.com", "admin@elenganche.com"];
@@ -116,19 +109,14 @@
             "Zona Este": ["Ensenada", "Berisso"]
         };
 
-        // --- MOCK DATA ---
         const INITIAL_MATCHES = [
             { time: '20:00', place: 'Predio El Rincón', zone: 'La Plata (Casco Urbano)', format: 'F5', type: 'player', missing: 1, position: 'Arquero', teamName: 'Los Rotos FC', urgent: true },
-            { time: '21:00', place: 'Doblete City Bell', zone: 'City Bell', format: 'F5', type: 'player', missing: 2, position: 'Defensor y Medio', teamName: 'La Scaloneta', urgent: false },
+            { time: '20:30', place: 'Club Atl. Villa Elisa', zone: 'Villa Elisa', format: 'F7', type: 'rival', missing: 0, position: 'Equipo Completo', teamName: 'Defensores VE', urgent: true },
         ];
-
         const INITIAL_PLAYERS = [
             { name: 'Lucho M.', position: 'Arquero', zone: 'Villa Elisa', rating: 4, status: 'Disponible' },
-            { name: 'Facu "La Joya"', position: 'Delantero', zone: 'La Plata (Casco Urbano)', rating: 5, status: 'Escuchando ofertas' },
-            { name: 'Juan P.', position: 'Medio', zone: 'Los Hornos', rating: 4, status: 'Disponible' },
         ];
 
-        // --- COMPONENTE APP ---
         const App = () => {
             const [view, setView] = useState('landing');
             const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -136,6 +124,9 @@
             const [showNotifications, setShowNotifications] = useState(false);
             const [formatFilter, setFormatFilter] = useState('Todos');
             const [zoneFilter, setZoneFilter] = useState('Todas');
+            
+            // PWA Install State
+            const [deferredPrompt, setDeferredPrompt] = useState(null);
             
             const [user, setUser] = useState(null);
             const [userProfile, setUserProfile] = useState(null); 
@@ -175,6 +166,16 @@
             const pendingInvitations = invitations.filter(inv => inv.status === 'pending');
             const isCaptain = myTeam && myTeam.captainId === user?.uid;
 
+            // --- PWA INSTALL EFFECT ---
+            useEffect(() => {
+                const handler = (e) => {
+                    e.preventDefault();
+                    setDeferredPrompt(e);
+                };
+                window.addEventListener('beforeinstallprompt', handler);
+                return () => window.removeEventListener('beforeinstallprompt', handler);
+            }, []);
+
             // --- AUTH & INIT ---
             useEffect(() => {
                 const init = async () => {
@@ -197,7 +198,6 @@
                             subscribeToData();
                         } else {
                             try { await signInAnonymously(auth); } catch(e) { 
-                                console.error("Anon auth failed", e); 
                                 setMatches(INITIAL_MATCHES); setPlayers(INITIAL_PLAYERS); setLoading(false);
                             }
                         }
@@ -223,7 +223,7 @@
                         const mine = all.filter(i => i.toUserId === user.uid).sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0));
                         setInvitations(mine);
                     });
-                } catch(e) { console.error("Error syncing user data", e); }
+                } catch(e) { console.error(e); }
             }, [user]);
 
             const subscribeToData = () => {
@@ -262,8 +262,17 @@
             };
             const handleLogout = async () => { await signOut(auth); setView('landing'); setIsMenuOpen(false); };
             const handleGuest = () => setView('app');
+            
+            const handleInstallClick = async () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    if (outcome === 'accepted') setDeferredPrompt(null);
+                } else {
+                    alert("Para instalar esta App:\n\n📱 iPhone/iPad: Toca el botón 'Compartir' y luego 'Agregar a Inicio'.\n\n📱 Android: Toca el menú (3 puntos) y luego 'Instalar aplicación'.");
+                }
+            };
 
-            // --- LOGIC ---
             const handleJoinMatch = async (match) => {
                 if (!user) { setShowLoginModal(true); return; }
                 const ref = doc(db, 'artifacts', appId, 'public', 'data', 'matches', match.id);
@@ -272,7 +281,6 @@
                 else if (match.missing > 0) await updateDoc(ref, { missing: increment(-1), playersSigned: arrayUnion(user.uid) });
             };
             
-            // --- HEADER BUTTON LOGIC ---
             const handleClickHeaderButton = () => {
                 if (!user) return setShowLoginModal(true);
                 if (!myTeam) return setShowCreateTeamModal(true);
@@ -280,7 +288,6 @@
                 setShowPublishModal(true);
             };
 
-            // --- PUBLISH LOGIC ---
             const handleAddSlot = () => setNeededPositions([...neededPositions, 'Cualquiera']);
             const handleRemoveSlot = (index) => {
                 if (neededPositions.length > 1) {
@@ -298,11 +305,9 @@
             const handlePublishMatch = async (e) => {
                 e.preventDefault();
                 if (!user) return;
-                
                 const isRival = publishData.type === 'rival';
                 const missingCount = isRival ? 0 : neededPositions.length;
                 const positionString = isRival ? 'Equipo Completo' : neededPositions.join(', ');
-
                 await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'matches'), {
                     ...publishData,
                     missing: missingCount,
@@ -335,10 +340,7 @@
                 }
             };
             
-            // --- DELETE LOGIC ---
-            const askConfirmation = (text, action) => {
-                setConfirmation({ show: true, text, action });
-            };
+            const askConfirmation = (text, action) => { setConfirmation({ show: true, text, action }); };
 
             const handleDeletePlayer = (id) => {
                 if (!user) return;
@@ -353,7 +355,6 @@
                 if (!user) return;
                 const match = matches.find(m => m.id === idMatch);
                 const isCreator = match && match.createdBy === user.uid;
-
                 if(isAdmin || isCreator) {
                     askConfirmation("¿Vas a eliminar este partido permanentemente?", async () => {
                         await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'matches', idMatch));
@@ -373,16 +374,12 @@
                 setShowCreateTeamModal(false);
             };
 
-            // ADMIN: Generar equipo demo
             const handleCreateDemoTeam = async () => {
                 if (!user) return;
                 const demoPlayers = [
                     { uid: 'demo1', name: 'Esteban La Roca', role: 'player', status: 'active' },
                     { uid: 'demo2', name: 'Pedro Picapiedra', role: 'player', status: 'active' },
                     { uid: 'demo3', name: 'Santi Cazorla', role: 'player', status: 'active' },
-                    { uid: 'demo4', name: 'Lio Messi (Fake)', role: 'player', status: 'active' },
-                    { uid: 'demo5', name: 'Dibu Martinez', role: 'player', status: 'active' },
-                    { uid: 'demo6', name: 'Angelito', role: 'player', status: 'injured' }
                 ];
                 await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'teams'), {
                     name: "Dream Team (Demo)", captainId: user.uid, captainName: user.displayName,
@@ -399,7 +396,6 @@
                 await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'teams', myTeam.id), { members: updatedMembers });
             };
 
-            // Scouting
             const handleSearchUsers = async (e) => {
                 e.preventDefault();
                 if (!searchQuery.trim()) return;
@@ -485,11 +481,6 @@
                 }
             };
 
-            const mockAction = (msg) => {
-                if(!user) return setShowLoginModal(true);
-                alert(msg + " (Lógica conectada a Firebase)");
-            }
-
             const StarRating = ({ rating }) => (
                 <div className="flex gap-0.5">
                     {[...Array(5)].map((_, i) => (
@@ -565,12 +556,24 @@
                                 </div>
                             </div>
                             <div className="flex items-center gap-3">
-                                <button 
-                                    onClick={handleClickHeaderButton} 
-                                    className="bg-[#00ff55] text-black px-3 py-1.5 rounded shadow-[0_0_10px_rgba(0,255,85,0.4)] hover:bg-white font-black uppercase text-xs flex items-center gap-1"
-                                >
-                                    <PlusCircle size={14}/> <span className="hidden sm:inline">{!myTeam ? "CREAR EQUIPO" : "PUBLICAR"}</span>
-                                </button>
+                                <div className="flex gap-2">
+                                    {/* BOTÓN CREAR/PUBLICAR */}
+                                    <button 
+                                        onClick={handleClickHeaderButton} 
+                                        className="bg-[#00ff55] text-black px-3 py-1.5 rounded shadow-[0_0_10px_rgba(0,255,85,0.4)] hover:bg-white font-black uppercase text-xs flex items-center gap-1"
+                                    >
+                                        <PlusCircle size={14}/> <span className="hidden sm:inline">{!myTeam ? "CREAR EQUIPO" : "PUBLICAR"}</span>
+                                    </button>
+                                    
+                                    {/* BOTÓN INSTALAR APP - VISIBLE */}
+                                    <button 
+                                        onClick={handleInstallClick} 
+                                        className="bg-gray-800 text-[#00ff55] border border-[#00ff55] px-3 py-1.5 rounded shadow-[0_0_10px_rgba(0,255,85,0.2)] hover:bg-[#00ff55] hover:text-black font-black uppercase text-xs flex items-center gap-1 transition-all"
+                                    >
+                                        <Download size={14}/> <span className="hidden sm:inline">App</span>
+                                    </button>
+                                </div>
+
                                 {user ? (
                                     <div className="flex items-center gap-3">
                                         <button className="relative p-2" onClick={() => setShowNotifications(!showNotifications)}>
