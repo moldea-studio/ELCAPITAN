@@ -2,9 +2,52 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>El Enganche - Fútbol Amateur</title>
     
+    <!-- PWA: Color de la barra de estado -->
+    <meta name="theme-color" content="#00ff55">
+    
+    <!-- PWA: Configuración iOS -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="El Enganche">
+    
+    <!-- PWA: Icono para iOS -->
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/431/431238.png">
+
+    <!-- PWA: Manifiesto dinámico -->
+    <link rel="manifest" id="manifest-placeholder">
+    <script>
+        const manifest = {
+            "name": "El Enganche - Fútbol Amateur",
+            "short_name": "El Enganche",
+            "start_url": ".",
+            "display": "standalone",
+            "background_color": "#111827",
+            "theme_color": "#00ff55",
+            "orientation": "portrait",
+            "icons": [
+                {
+                    "src": "https://cdn-icons-png.flaticon.com/512/431/431238.png",
+                    "sizes": "192x192",
+                    "type": "image/png",
+                    "purpose": "any maskable"
+                },
+                {
+                    "src": "https://cdn-icons-png.flaticon.com/512/431/431238.png",
+                    "sizes": "512x512",
+                    "type": "image/png",
+                    "purpose": "any maskable"
+                }
+            ]
+        };
+        const stringManifest = JSON.stringify(manifest);
+        const blob = new Blob([stringManifest], {type: 'application/json'});
+        const manifestURL = URL.createObjectURL(blob);
+        document.querySelector('#manifest-placeholder').setAttribute('href', manifestURL);
+    </script>
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -13,7 +56,7 @@
 
     <!-- Estilos base -->
     <style>
-        body { background-color: #111827; color: #e5e7eb; font-family: sans-serif; padding-bottom: 70px; /* Espacio para navbar inferior */ }
+        body { background-color: #111827; color: #e5e7eb; font-family: sans-serif; padding-bottom: 80px; /* Extra padding for PWA safe area */ }
         /* Scrollbar */
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #1a1a1a; }
@@ -25,6 +68,11 @@
         /* Loading/Error states */
         #root { min-height: 100vh; display: flex; flex-direction: column; }
         #error-display { display: none; padding: 20px; color: #ff6b6b; background: #2d1b1b; text-align: center; }
+        
+        /* PWA specific safe areas */
+        @supports (padding-bottom: env(safe-area-inset-bottom)) {
+            .pwa-safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+        }
     </style>
 </head>
 <body>
@@ -152,7 +200,6 @@
             const [showPublishModal, setShowPublishModal] = useState(false);
             const [showScoutModal, setShowScoutModal] = useState(false); 
             const [showTeamSearchModal, setShowTeamSearchModal] = useState(false); 
-            // Nuevo estado para modal de confirmación
             const [confirmation, setConfirmation] = useState({ show: false, text: '', action: null });
             
             // Forms
@@ -336,7 +383,7 @@
                 }
             };
             
-            // --- DELETE LOGIC (ADMIN OR SELF) - WITH CUSTOM CONFIRM ---
+            // --- DELETE LOGIC ---
             const askConfirmation = (text, action) => {
                 setConfirmation({ show: true, text, action });
             };
