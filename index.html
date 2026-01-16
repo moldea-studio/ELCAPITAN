@@ -13,7 +13,7 @@
 
     <!-- Estilos base -->
     <style>
-        body { background-color: #111827; color: #e5e7eb; font-family: sans-serif; }
+        body { background-color: #111827; color: #e5e7eb; font-family: sans-serif; padding-bottom: 70px; /* Espacio para navbar inferior */ }
         /* Scrollbar */
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #1a1a1a; }
@@ -41,7 +41,7 @@
 
     <!-- Script Principal -->
     <script type="text/babel" data-type="module" data-presets="react">
-        // Importaciones desde ESM.SH para mayor compatibilidad
+        // Importaciones
         import React, { useState, useEffect } from 'https://esm.sh/react@18.2.0';
         import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
         import { 
@@ -49,10 +49,10 @@
             ChevronRight, ChevronDown, ChevronUp, Swords, Star, Menu, X, Filter, 
             Link as LinkIcon, User, LogOut, Mail, Lock, Trash2, Ban, Trophy, 
             Activity, ArrowLeft, HelpCircle, FileText, Lock as LockIcon, Bell, 
-            CheckCircle, XCircle, Send, Crown, UserPlus, Share2, Edit2, Save, MinusCircle
+            CheckCircle, XCircle, Send, Crown, UserPlus, Share2, Edit2, Save, MinusCircle,
+            Home, Zap
         } from 'https://esm.sh/lucide-react@0.294.0';
         
-        // Importaciones Firebase
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { 
             getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged,
@@ -115,19 +115,20 @@
             "Zona Este": ["Ensenada", "Berisso"]
         };
 
-        // --- MOCK DATA PARA SEMBRAR (SEEDING) ---
+        // --- MOCK DATA ---
         const INITIAL_MATCHES = [
             { time: '20:00', place: 'Predio El Rincón', zone: 'La Plata (Casco Urbano)', format: 'F5', type: 'player', missing: 1, position: 'Arquero', teamName: 'Los Rotos FC', urgent: true },
-            { time: '20:30', place: 'Club Atl. Villa Elisa', zone: 'Villa Elisa', format: 'F7', type: 'rival', missing: 0, position: 'Equipo Completo', teamName: 'Defensores VE', urgent: true },
             { time: '21:00', place: 'Doblete City Bell', zone: 'City Bell', format: 'F5', type: 'player', missing: 2, position: 'Defensor y Medio', teamName: 'La Scaloneta', urgent: false },
-            { time: '22:00', place: 'Cancha 414', zone: 'Arturo Seguí', format: 'F9', type: 'rival', missing: 0, position: 'Equipo Completo', teamName: 'Seguí FC', urgent: false },
-            { time: '19:00', place: 'El Galpón', zone: 'Manuel B. Gonnet', format: 'F5', type: 'player', missing: 1, position: 'Medio', teamName: 'Los Pibes del Norte', urgent: true },
         ];
 
         const INITIAL_PLAYERS = [
             { name: 'Lucho M.', position: 'Arquero', zone: 'Villa Elisa', rating: 4, status: 'Disponible' },
             { name: 'Facu "La Joya"', position: 'Delantero', zone: 'La Plata (Casco Urbano)', rating: 5, status: 'Escuchando ofertas' },
             { name: 'Juan P.', position: 'Medio', zone: 'Los Hornos', rating: 4, status: 'Disponible' },
+            { name: 'Esteban La Roca', position: 'Defensor', zone: 'Arturo Seguí', rating: 3, status: 'Disponible' },
+            { name: 'Pedro Picapiedra', position: 'Defensor', zone: 'Tolosa', rating: 4, status: 'Disponible' },
+            { name: 'Santi Cazorla', position: 'Medio', zone: 'City Bell', rating: 5, status: 'Disponible' },
+            { name: 'Dibu Martinez Jr', position: 'Arquero', zone: 'Villa Elvira', rating: 5, status: 'Disponible' }
         ];
 
         // --- COMPONENTE APP ---
@@ -160,7 +161,7 @@
             const [inviteData, setInviteData] = useState({ place: '', time: '' });
             const [newTeamName, setNewTeamName] = useState('');
             const [publishData, setPublishData] = useState({ type: 'player', format: 'F5', zone: 'La Plata (Casco Urbano)', place: '', time: '' });
-            const [neededPositions, setNeededPositions] = useState(['Cualquiera']); // ARRAY DE POSICIONES FALTANTES
+            const [neededPositions, setNeededPositions] = useState(['Cualquiera']);
             
             const [searchQuery, setSearchQuery] = useState(''); 
             const [searchResults, setSearchResults] = useState([]); 
@@ -272,7 +273,7 @@
                 else if (match.missing > 0) await updateDoc(ref, { missing: increment(-1), playersSigned: arrayUnion(user.uid) });
             };
             
-            // --- NEW PUBLISH LOGIC WITH MULTIPLE SLOTS ---
+            // --- PUBLISH LOGIC ---
             const handleAddSlot = () => setNeededPositions([...neededPositions, 'Cualquiera']);
             const handleRemoveSlot = (index) => {
                 if (neededPositions.length > 1) {
@@ -293,18 +294,17 @@
                 
                 const isRival = publishData.type === 'rival';
                 const missingCount = isRival ? 0 : neededPositions.length;
-                // Resumimos las posiciones en un string para mostrar en la tarjeta
                 const positionString = isRival ? 'Equipo Completo' : neededPositions.join(', ');
 
                 await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'matches'), {
                     ...publishData,
                     missing: missingCount,
-                    position: positionString, // Aquí se guardan todas: "Arquero, Delantero"
+                    position: positionString, 
                     teamName: myTeam ? myTeam.name : (user.displayName + " Team"),
                     urgent: false, playersSigned: [], createdBy: user.uid, createdAt: serverTimestamp()
                 });
                 setShowPublishModal(false);
-                setNeededPositions(['Cualquiera']); // Reset
+                setNeededPositions(['Cualquiera']);
                 alert("¡Publicación exitosa!");
             };
 
@@ -330,14 +330,16 @@
             
             const handleDeletePlayer = async (id) => {
                 if (!user) return;
-                if ((isAdmin || players.find(p=>p.id===id)?.uid === user?.uid) && confirm("¿Retirar postulación de la lista?")) {
+                if ((isAdmin || players.find(p=>p.id===id)?.uid === user?.uid) && confirm("¿ESTÁS SEGURO? Vas a eliminar a este jugador de la lista.")) {
                     await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'players', id));
                 }
             };
 
             const handleDeleteMatch = async (id) => {
                 if (!user) return;
-                if(isAdmin && confirm("¿Borrar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'matches', id));
+                if(isAdmin && confirm("¿ESTÁS SEGURO? Vas a eliminar este partido.")) {
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'matches', id));
+                }
             };
 
             const handleCreateTeam = async (e) => {
@@ -352,6 +354,25 @@
                 setShowCreateTeamModal(false);
             };
 
+            // ADMIN: Generar equipo demo
+            const handleCreateDemoTeam = async () => {
+                if (!user) return;
+                const demoPlayers = [
+                    { uid: 'demo1', name: 'Esteban La Roca', role: 'player', status: 'active' },
+                    { uid: 'demo2', name: 'Pedro Picapiedra', role: 'player', status: 'active' },
+                    { uid: 'demo3', name: 'Santi Cazorla', role: 'player', status: 'active' },
+                    { uid: 'demo4', name: 'Lio Messi (Fake)', role: 'player', status: 'active' },
+                    { uid: 'demo5', name: 'Dibu Martinez', role: 'player', status: 'active' },
+                    { uid: 'demo6', name: 'Angelito', role: 'player', status: 'injured' }
+                ];
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'teams'), {
+                    name: "Dream Team (Demo)", captainId: user.uid, captainName: user.displayName,
+                    members: [{ uid: user.uid, name: user.displayName, role: 'captain', status: 'active' }, ...demoPlayers],
+                    searchName: "dream team demo", createdAt: serverTimestamp()
+                });
+                alert("Equipo Demo Generado!");
+            };
+
             const handleToggleMemberStatus = async (memberUid, currentStatus) => {
                 if (!isCaptain || !myTeam || !user) return;
                 const newStatus = currentStatus === 'active' ? 'injured' : 'active';
@@ -359,6 +380,7 @@
                 await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'teams', myTeam.id), { members: updatedMembers });
             };
 
+            // Scouting
             const handleSearchUsers = async (e) => {
                 e.preventDefault();
                 if (!searchQuery.trim()) return;
@@ -444,20 +466,6 @@
                 }
             };
 
-            const mockAction = (msg) => {
-                if(!user) return setShowLoginModal(true);
-                alert(msg + " (Lógica conectada a Firebase)");
-            }
-
-            const StarRating = ({ rating }) => (
-                <div className="flex gap-0.5">
-                    {[...Array(5)].map((_, i) => (
-                        <Star key={i} size={10} className={i < rating ? 'fill-yellow-400 text-yellow-600' : 'fill-gray-400 text-gray-500'} />
-                    ))}
-                </div>
-            );
-
-            // --- COMPONENTE HELPER: SELECTOR DE ZONAS ---
             const ZoneSelectOptions = () => (
                 <>
                     {Object.entries(ZONES_BY_AREA).map(([region, zones]) => (
@@ -533,12 +541,6 @@
                                             <Bell size={20} className={pendingInvitations.length > 0 ? "text-[#00ff55] animate-pulse" : "text-gray-300"}/>
                                             {pendingInvitations.length > 0 && <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>}
                                         </button>
-                                        <div className="hidden xs:flex items-center gap-2 cursor-pointer" onClick={() => setView('profile')}>
-                                            <div className="text-right leading-none"><span className="text-[10px] text-gray-400">Jugador</span><div className="font-bold text-[#00ff55] text-xs">{user.displayName?.split(' ')[0]}</div></div>
-                                            <div className="w-8 h-8 rounded-full border border-gray-600 bg-gray-800 overflow-hidden">
-                                                {user.photoURL ? <img src={user.photoURL} className="w-full h-full object-cover"/> : <User className="p-1 text-white"/>}
-                                            </div>
-                                        </div>
                                     </div>
                                 ) : (
                                     <button onClick={() => setShowLoginModal(true)} className="text-xs font-bold text-[#00ff55] flex items-center gap-1"><User size={14}/> INGRESAR</button>
@@ -550,41 +552,56 @@
                             <div className="absolute top-full left-0 w-full bg-[#1a1a1a] border-t border-gray-700 shadow-2xl z-50 animate-in slide-in-from-top-2">
                                 {user ? (
                                     <div className="flex flex-col">
-                                        <div className="p-4 border-b border-gray-800 bg-gray-900 cursor-pointer" onClick={() => setIsProfileExpanded(!isProfileExpanded)}>
+                                        <div className="p-4 border-b border-gray-800 bg-gray-900 cursor-pointer" onClick={() => setView('profile')}>
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-10 h-10 rounded-full border-2 border-[#00ff55] overflow-hidden">{user.photoURL ? <img src={user.photoURL} className="w-full h-full object-cover"/> : <User className="p-2 text-white"/>}</div>
-                                                    <div><div className="text-white font-black">{user.displayName}</div><div className="text-xs text-[#00ff55]">En línea</div></div>
+                                                    <div><div className="text-white font-black">{user.displayName}</div><div className="text-xs text-[#00ff55]">Ver Perfil</div></div>
                                                 </div>
-                                                {isProfileExpanded ? <ChevronUp className="text-gray-500"/> : <ChevronDown className="text-gray-500"/>}
+                                                <ChevronRight className="text-gray-500"/>
                                             </div>
-                                            {isProfileExpanded && (
-                                                <div className="mt-4 space-y-3 pl-2 border-l-2 border-[#00ff55]/30">
-                                                    <div className="text-xs text-gray-400 uppercase font-bold">Mi Actividad</div>
-                                                    <div className="text-sm text-white flex items-center gap-2"><Calendar size={14} className="text-[#00ff55]"/> {myMatches.length} Partidos</div>
-                                                    <div className="text-sm text-white flex items-center gap-2"><Users size={14} className="text-[#00ff55]"/> {myPlayerProfile ? 'Ficha Activa' : 'Sin Ficha'}</div>
-                                                    <button onClick={() => { setView('profile'); setIsMenuOpen(false); }} className="text-[#00ff55] text-xs font-bold hover:underline block py-1">Ver Perfil Completo &rarr;</button>
-                                                </div>
-                                            )}
                                         </div>
                                         {!myTeam && (
-                                            <button onClick={() => { setShowCreateTeamModal(true); setIsMenuOpen(false); }} className="w-full py-3 text-white font-bold text-xs uppercase hover:bg-gray-800 flex items-center justify-center gap-2 border-b border-gray-800"><Shield size={16}/> Crear Equipo</button>
+                                            <button onClick={() => { setShowCreateTeamModal(true); setIsMenuOpen(false); }} className="w-full py-4 text-white font-bold text-xs uppercase hover:bg-gray-800 flex items-center justify-center gap-2 border-b border-gray-800"><Shield size={16}/> Crear Equipo</button>
                                         )}
-                                        <button onClick={handleLogout} className="w-full py-3 text-red-500 font-bold text-xs uppercase bg-black/20 hover:bg-red-900/20">Cerrar Sesión</button>
+                                        <button onClick={handleLogout} className="w-full py-4 text-red-500 font-bold text-xs uppercase bg-black/20 hover:bg-red-900/20">Cerrar Sesión</button>
                                     </div>
                                 ) : (
                                     <div className="p-4"><button onClick={() => setShowLoginModal(true)} className="w-full bg-[#00ff55] text-black font-bold py-3 rounded uppercase">Iniciar Sesión</button></div>
                                 )}
                             </div>
                         )}
+                        {/* Notification Dropdown */}
+                        {showNotifications && (
+                             <div className="absolute top-16 right-2 w-72 bg-[#1a1a1a] border border-gray-700 rounded-lg shadow-2xl z-[60]">
+                                 <div className="p-3 bg-gray-900 border-b border-gray-800 font-bold text-xs text-gray-400 uppercase tracking-wider">
+                                     Invitaciones ({pendingInvitations.length})
+                                 </div>
+                                 <div className="max-h-64 overflow-y-auto">
+                                     {pendingInvitations.length > 0 ? (
+                                         pendingInvitations.map(inv => (
+                                             <div key={inv.id} className="p-3 border-b border-gray-800 hover:bg-white/5 transition-colors">
+                                                 <div className="text-[#00ff55] font-bold text-sm mb-1">{inv.teamName}</div>
+                                                 <div className="text-xs text-gray-300 mb-2">
+                                                     <span className="block">📅 {inv.place}</span>
+                                                     <span className="block">⏰ {inv.time}</span>
+                                                     <span className="block text-gray-500 italic mt-1">De: {inv.fromName}</span>
+                                                 </div>
+                                                 <div className="flex gap-2">
+                                                     <button onClick={() => handleRespondInvitation(inv, 'accepted')} className="flex-1 bg-green-900/50 hover:bg-green-800 text-green-200 text-[10px] py-1.5 rounded border border-green-800 font-bold flex items-center justify-center gap-1"><CheckCircle size={12}/> Confirmar</button>
+                                                     <button onClick={() => handleRespondInvitation(inv, 'rejected')} className="flex-1 bg-red-900/50 hover:bg-red-800 text-red-200 text-[10px] py-1.5 rounded border border-red-800 font-bold flex items-center justify-center gap-1"><XCircle size={12}/> Rechazar</button>
+                                                 </div>
+                                             </div>
+                                         ))
+                                     ) : (
+                                         <div className="p-4 text-center text-xs text-gray-500 italic">No tienes invitaciones pendientes.</div>
+                                     )}
+                                 </div>
+                             </div>
+                         )}
                     </header>
 
-                    {/* Ticker */}
-                    <div className="bg-black py-2 px-3 border-b border-gray-800 text-xs flex items-center text-gray-400 overflow-hidden whitespace-nowrap">
-                        <span className="text-[#00ff55] mr-2 animate-pulse">●</span> <span className="font-bold text-gray-200 mr-1">MERCADO:</span> Mostrando {filteredMatches.length} partidos y {players.length} agentes libres en zona La Plata.
-                    </div>
-
-                    {/* Main */}
+                    {/* Main Content */}
                     <main className="flex-1 max-w-6xl mx-auto w-full p-2 sm:p-4 grid grid-cols-1 lg:grid-cols-12 gap-6">
                         
                         {view === 'profile' && user ? (
@@ -593,9 +610,9 @@
                                     <div className="w-24 h-24 rounded-full border-4 border-[#00ff55] overflow-hidden bg-black">{user.photoURL ? <img src={user.photoURL} className="w-full h-full object-cover"/> : <User className="w-full h-full p-4 text-gray-500"/>}</div>
                                     <div className="text-center sm:text-left flex-1">
                                         <h1 className="text-3xl font-black italic">{user.displayName}</h1>
+                                        {myTeam && myTeam.captainId === user.uid && <div className="text-[#00ff55] font-bold text-sm uppercase flex items-center gap-1 justify-center sm:justify-start"><Crown size={14}/> Capitán de {myTeam.name}</div>}
                                         <p className="text-gray-400 text-sm">{user.email}</p>
                                         <div className="flex gap-3 justify-center sm:justify-start mt-3 items-center">
-                                            {/* POSICIÓN EDITABLE */}
                                             {isEditingPosition ? (
                                                 <div className="flex gap-1 items-center">
                                                     <select className="bg-black text-white text-xs p-1 rounded border border-gray-600" value={userProfile?.position || 'Polifuncional'} onChange={(e) => handleUpdatePosition(e.target.value)}>
@@ -608,8 +625,8 @@
                                                     {userProfile?.position || 'Polifuncional'} <Edit2 size={10} className="text-gray-400"/>
                                                 </div>
                                             )}
-                                            {myTeam && <div className="bg-[#00ff55]/10 px-3 py-1 rounded border border-[#00ff55]/30 text-[#00ff55] font-bold flex items-center gap-2"><Shield size={14}/> {myTeam.name}</div>}
                                         </div>
+                                        {isAdmin && <button onClick={handleCreateDemoTeam} className="mt-4 bg-yellow-600/50 text-white text-xs px-2 py-1 rounded border border-yellow-500 flex items-center gap-1 mx-auto sm:mx-0"><Zap size={12}/> Generar Equipo Demo</button>}
                                     </div>
                                 </div>
                                 {/* Team Section */}
@@ -682,9 +699,8 @@
                                                 <div className="text-right">
                                                     {m.type === 'rival' ? <span className="bg-black text-[#00ff55] px-2 py-1 rounded text-[10px] font-bold border border-[#00ff55]">RIVAL</span> : 
                                                     <div className="flex flex-col items-center"><span className="font-bold text-lg leading-none">{m.missing}</span><span className="text-[9px] uppercase font-bold text-gray-500">Faltan</span></div>}
-                                                    {/* Mostrar posiciones solicitadas */}
                                                     {m.type === 'player' && m.position && (
-                                                        <div className="text-xs text-[#006400] font-bold mt-1 max-w-[120px] truncate">
+                                                        <div className="text-xs text-[#006400] font-bold mt-1 max-w-[150px] truncate" title={m.position}>
                                                             Buscan: {m.position}
                                                         </div>
                                                     )}
@@ -832,34 +848,7 @@
                             </div>
                         </div>
                     )}
-                    
-                    {showTeamSearchModal && (
-                        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[100]">
-                            <div className="bg-[#1a1a1a] p-6 rounded border border-[#00ff55] w-full max-w-md text-white h-[80vh] flex flex-col">
-                                <div className="flex justify-between items-center mb-4">
-                                    <h3 className="font-bold text-[#00ff55] flex gap-2"><Shield size={20}/> BUSCAR EQUIPO</h3>
-                                    <button onClick={() => setShowTeamSearchModal(false)}><X size={20} className="text-gray-400"/></button>
-                                </div>
-                                <div className="flex gap-2 mb-4">
-                                    <input placeholder="Nombre del equipo..." className="flex-1 bg-black/50 p-2 rounded text-sm border border-gray-700" value={teamSearchQuery} onChange={e => setTeamSearchQuery(e.target.value)}/>
-                                    <button onClick={handleSearchTeams} className="bg-[#00ff55] text-black p-2 rounded"><Search size={16}/></button>
-                                </div>
-                                <div className="flex-1 overflow-y-auto space-y-2 mb-4">
-                                    {teamSearchResults.map(t => (
-                                        <div key={t.id} className="flex justify-between items-center p-2 bg-gray-800 rounded">
-                                            <div>
-                                                <div className="font-bold text-sm">{t.name}</div>
-                                                <div className="text-xs text-gray-400">Capitán: {t.captainName}</div>
-                                            </div>
-                                            <button onClick={() => sendJoinRequest(t)} className="text-[#00ff55] text-xs border border-[#00ff55] px-2 py-1 rounded">Solicitar</button>
-                                        </div>
-                                    ))}
-                                    {teamSearchResults.length === 0 && teamSearchQuery && <p className="text-center text-gray-500 text-sm">No se encontraron equipos.</p>}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                    
+
                     {showScoutModal && (
                         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[100]">
                             <div className="bg-[#1a1a1a] p-6 rounded border border-[#00ff55] w-full max-w-md text-white h-[80vh] flex flex-col">
@@ -893,14 +882,65 @@
                         </div>
                     )}
 
-                    <footer className="bg-[#0f0f0f] text-gray-500 text-xs text-center py-8 mt-12 border-t border-gray-800">
-                        <p className="mb-3 font-medium text-gray-400">EL ENGANCHE © 2026</p>
-                        <div className="flex justify-center gap-6 mb-4 font-bold text-gray-600 uppercase tracking-wider">
-                            <span className="flex gap-1 items-center hover:text-[#00ff55] cursor-pointer"><FileText size={14}/> Reglamento</span>
-                            <span className="flex gap-1 items-center hover:text-[#00ff55] cursor-pointer"><HelpCircle size={14}/> Soporte</span>
-                            <span className="flex gap-1 items-center hover:text-[#00ff55] cursor-pointer"><LockIcon size={14}/> Privacidad</span>
+                    {showTeamSearchModal && (
+                        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[100]">
+                            <div className="bg-[#1a1a1a] p-6 rounded border border-[#00ff55] w-full max-w-md text-white h-[80vh] flex flex-col">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="font-bold text-[#00ff55] flex gap-2"><Shield size={20}/> BUSCAR EQUIPO</h3>
+                                    <button onClick={() => setShowTeamSearchModal(false)}><X size={20} className="text-gray-400"/></button>
+                                </div>
+                                <div className="flex gap-2 mb-4">
+                                    <input placeholder="Nombre del equipo..." className="flex-1 bg-black/50 p-2 rounded text-sm border border-gray-700" value={teamSearchQuery} onChange={e => setTeamSearchQuery(e.target.value)}/>
+                                    <button onClick={handleSearchTeams} className="bg-[#00ff55] text-black p-2 rounded"><Search size={16}/></button>
+                                </div>
+                                <div className="flex-1 overflow-y-auto space-y-2 mb-4">
+                                    {teamSearchResults.map(t => (
+                                        <div key={t.id} className="flex justify-between items-center p-2 bg-gray-800 rounded">
+                                            <div>
+                                                <div className="font-bold text-sm">{t.name}</div>
+                                                <div className="text-xs text-gray-400">Capitán: {t.captainName}</div>
+                                            </div>
+                                            <button onClick={() => sendJoinRequest(t)} className="text-[#00ff55] text-xs border border-[#00ff55] px-2 py-1 rounded">Solicitar</button>
+                                        </div>
+                                    ))}
+                                    {teamSearchResults.length === 0 && teamSearchQuery && <p className="text-center text-gray-500 text-sm">No se encontraron equipos.</p>}
+                                </div>
+                            </div>
                         </div>
-                    </footer>
+                    )}
+
+                    {/* Bottom Nav Bar - Solo si está logueado */}
+                    {user && (
+                        <div className="fixed bottom-0 left-0 w-full bg-[#111] border-t border-gray-800 flex justify-around items-center h-16 z-50">
+                            <button onClick={() => setView('landing')} className={`flex flex-col items-center gap-1 ${view === 'landing' ? 'text-[#00ff55]' : 'text-gray-500'}`}>
+                                <Home size={20}/> <span className="text-[10px]">Inicio</span>
+                            </button>
+                            <button onClick={() => setShowPublishModal(true)} className="flex flex-col items-center gap-1 text-gray-500 hover:text-white">
+                                <PlusCircle size={20}/> <span className="text-[10px]">Publicar</span>
+                            </button>
+                            <button onClick={() => setView('profile')} className={`flex flex-col items-center gap-1 ${view === 'profile' ? 'text-[#00ff55]' : 'text-gray-500'}`}>
+                                <Shield size={20}/> <span className="text-[10px]">Mi Equipo</span>
+                            </button>
+                            <button onClick={() => setView('profile')} className="flex flex-col items-center gap-1 text-gray-500">
+                                <div className="w-5 h-5 rounded-full border border-current overflow-hidden">
+                                    {user.photoURL ? <img src={user.photoURL} className="w-full h-full object-cover"/> : <User size={12} className="w-full h-full p-0.5"/>}
+                                </div>
+                                <span className="text-[10px]">Perfil</span>
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Footer original (oculto si hay bottom nav para evitar superposición visual fea) */}
+                    {!user && (
+                        <footer className="bg-[#0f0f0f] text-gray-500 text-xs text-center py-8 mt-12 border-t border-gray-800">
+                            <p className="mb-3 font-medium text-gray-400">EL ENGANCHE © 2026</p>
+                            <div className="flex justify-center gap-6 mb-4 font-bold text-gray-600 uppercase tracking-wider">
+                                <span className="flex gap-1 items-center hover:text-[#00ff55] cursor-pointer"><FileText size={14}/> Reglamento</span>
+                                <span className="flex gap-1 items-center hover:text-[#00ff55] cursor-pointer"><HelpCircle size={14}/> Soporte</span>
+                                <span className="flex gap-1 items-center hover:text-[#00ff55] cursor-pointer"><LockIcon size={14}/> Privacidad</span>
+                            </div>
+                        </footer>
+                    )}
                 </div>
             );
         };
