@@ -143,6 +143,7 @@
             const [showPublishModal, setShowPublishModal] = useState(false);
             const [showScoutModal, setShowScoutModal] = useState(false); 
             const [showTeamSearchModal, setShowTeamSearchModal] = useState(false); 
+            const [showInstallModal, setShowInstallModal] = useState(false); // Modal Instrucciones PWA
             const [confirmation, setConfirmation] = useState({ show: false, text: '', action: null });
             
             // Forms
@@ -269,7 +270,7 @@
                     const { outcome } = await deferredPrompt.userChoice;
                     if (outcome === 'accepted') setDeferredPrompt(null);
                 } else {
-                    alert("Para instalar esta App:\n\n📱 iPhone/iPad: Toca el botón 'Compartir' y luego 'Agregar a Inicio'.\n\n📱 Android: Toca el menú (3 puntos) y luego 'Instalar aplicación'.");
+                    setShowInstallModal(true);
                 }
             };
 
@@ -557,15 +558,12 @@
                             </div>
                             <div className="flex items-center gap-3">
                                 <div className="flex gap-2">
-                                    {/* BOTÓN CREAR/PUBLICAR */}
                                     <button 
                                         onClick={handleClickHeaderButton} 
                                         className="bg-[#00ff55] text-black px-3 py-1.5 rounded shadow-[0_0_10px_rgba(0,255,85,0.4)] hover:bg-white font-black uppercase text-xs flex items-center gap-1"
                                     >
                                         <PlusCircle size={14}/> <span className="hidden sm:inline">{!myTeam ? "CREAR EQUIPO" : "PUBLICAR"}</span>
                                     </button>
-                                    
-                                    {/* BOTÓN INSTALAR APP - VISIBLE */}
                                     <button 
                                         onClick={handleInstallClick} 
                                         className="bg-gray-800 text-[#00ff55] border border-[#00ff55] px-3 py-1.5 rounded shadow-[0_0_10px_rgba(0,255,85,0.2)] hover:bg-[#00ff55] hover:text-black font-black uppercase text-xs flex items-center gap-1 transition-all"
@@ -1015,6 +1013,24 @@
                                     ))}
                                     {teamSearchResults.length === 0 && teamSearchQuery && <p className="text-center text-gray-500 text-sm">No se encontraron equipos.</p>}
                                 </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {showInstallModal && (
+                        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[100]">
+                            <div className="bg-[#1a1a1a] p-6 rounded border border-[#00ff55] w-full max-w-sm text-center">
+                                <h3 className="text-white font-bold mb-4 flex justify-center items-center gap-2">
+                                    <Download size={20} className="text-[#00ff55]"/> INSTALAR APP
+                                </h3>
+                                <p className="text-gray-300 text-sm mb-4">
+                                    Para instalar <strong>El Enganche</strong> en tu dispositivo:
+                                </p>
+                                <div className="text-left bg-black/30 p-3 rounded border border-gray-700 mb-4 text-xs text-gray-400 space-y-2">
+                                    <p><strong className="text-white">📱 iPhone / iPad:</strong><br/>Toca el botón <span className="text-[#00ff55]">Compartir</span> <Share2 size={10} className="inline"/> y busca <span className="text-white">"Agregar a Inicio"</span>.</p>
+                                    <p><strong className="text-white">📱 Android:</strong><br/>Toca el menú (3 puntos) y busca <span className="text-white">"Instalar aplicación"</span>.</p>
+                                </div>
+                                <button onClick={() => setShowInstallModal(false)} className="bg-[#00ff55] text-black font-bold py-2 px-6 rounded text-xs uppercase">Entendido</button>
                             </div>
                         </div>
                     )}
