@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>El Enganche - Fútbol Amateur</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Babel para traducir JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Estilos base -->
+    <style>
+        body { background-color: #111827; color: #e5e7eb; font-family: sans-serif; }
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1a1a1a; }
+        ::-webkit-scrollbar-thumb { background: #00ff55; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #00cc44; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Loading/Error states */
+        #root { min-height: 100vh; display: flex; flex-direction: column; }
+        #error-display { display: none; padding: 20px; color: #ff6b6b; background: #2d1b1b; text-align: center; }
+    </style>
+</head>
+<body>
+    <div id="error-display"></div>
+    <div id="root">
+        <!-- Loader inicial mientras React arranca -->
+        <div class="flex-1 flex items-center justify-center text-[#00ff55] animate-pulse">
+            <svg class="w-10 h-10 animate-spin mr-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+            </svg>
+            Cargando El Enganche...
+        </div>
+    </div>
+
+    <!-- Script Principal -->
+    <script type="text/babel" data-type="module" data-presets="react">
+        // Importaciones desde ESM.SH para mayor compatibilidad
+        import React, { useState, useEffect } from 'https://esm.sh/react@18.2.0';
+        import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
+        // NOTA: Se eliminó 'Ambulance' para corregir el error de importación
+        import { 
+            Users, MapPin, Calendar, Shield, Search, PlusCircle, AlertCircle, 
+            ChevronRight, ChevronDown, ChevronUp, Swords, Star, Menu, X, Filter, 
+            Link as LinkIcon, User, LogOut, Mail, Lock, Trash2, Ban, Trophy, 
+            Activity, ArrowLeft, HelpCircle, FileText, Lock as LockIcon, Bell, 
+            CheckCircle, XCircle, Send, Crown 
+        } from 'https://esm.sh/lucide-react@0.294.0';
+        
+        // Importaciones Firebase
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { 
+            getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged,
+            signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile,
+            signInAnonymously, signInWithCustomToken
+        } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { 
+            getFirestore, collection, query, onSnapshot, doc, updateDoc, increment, 
+            arrayUnion, arrayRemove, addDoc, serverTimestamp, deleteDoc, where, 
+            orderBy, getDoc 
+        } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        // --- MANEJO DE ERRORES GLOBAL ---
+        window.onerror = function(message, source, lineno, colno, error) {
+            const display = document.getElementById('error-display');
+            display.style.display = 'block';
+            display.innerHTML = `<strong>Error:</strong> ${message} <br/><small>${source}:${lineno}</small>`;
+            console.error(error);
+        };
+
+        // --- CONFIGURACIÓN FIREBASE ---
+        const getFirebaseConfig = () => {
+            if (typeof __firebase_config !== 'undefined') return JSON.parse(__firebase_config);
+            // Configuración DEMO segura
+            console.warn("Usando configuración Firebase de DEMO.");
+            return {
+                apiKey: "AIzaSyDEMO-KEY-REPLACE-ME",
+                authDomain: "demo-project.firebaseapp.com",
+                projectId: "demo-project",
+                storageBucket: "demo-project.appspot.com",
+                messagingSenderId: "123456789",
+                appId: "1:123456789:web:abcdef"
+            };
+        };
+
+        // --- INICIALIZACIÓN ROBUSTA ---
+        let app, auth, db;
+        try {
+            const firebaseConfig = getFirebaseConfig();
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+        } catch (e) {
+            console.error("Error inicializando Firebase:", e);
+            document.getElementById('error-display').innerText = "Error conectando con la base de datos. (Ver consola)";
+        }
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'el-enganche-web';
+        const ADMIN_EMAILS = ["worlddigital2011@gmail.com", "admin@elenganche.com"];
+        const LA_PLATA_ZONES = [
+            "Todas", "La Plata (Casco Urbano)", "City Bell", "Villa Elisa", 
+            "Manuel B. Gonnet", "Arturo Seguí", "Ringuelet", "Tolosa", 
+            "Los Hornos", "San Carlos", "Villa Elvira", "Altos de San Lorenzo", 
+            "Villa Castells", "Joaquín Gorina", "José Hernández", "Lisandro Olmos", 
+            "Melchor Romero", "Abasto", "Etcheverry", "El Peligro", "Sicardi / Villa Garibaldi"
+        ];
+
+        // --- MOCK DATA DE RESERVA ---
+        const FALLBACK_MATCHES = [
+            { id: 'm1', time: '20:00', place: 'Predio El Rincón', zone: 'La Plata (Casco Urbano)', format: 'F5', type: 'player', missing: 1, position: 'Arquero', teamName: 'Los Rotos FC', urgent: true },
+            { id: 'm2', time: '21:00', place: 'Doblete City Bell', zone: 'City Bell', format: 'F5', type: 'player', missing: 2, position: 'Defensor', teamName: 'La Scaloneta', urgent: false },
+        ];
+        const FALLBACK_PLAYERS = [
+            { id: 'p1', name: 'Lucho M.', position: 'Arquero', zone: 'Villa Elisa', rating: 4, status: 'Disponible' },
+        ];
+
+        // --- COMPONENTE APP ---
+        const App = () => {
+            const [view, setView] = useState('landing');
+            const [isMenuOpen, setIsMenuOpen] = useState(false);
+            const [isProfileExpanded, setIsProfileExpanded] = useState(false);
+            const [showNotifications, setShowNotifications] = useState(false);
+            const [formatFilter, setFormatFilter] = useState('Todos');
+            const [zoneFilter, setZoneFilter] = useState('Todas');
+            
+            const [user, setUser] = useState(null);
+            const [matches, setMatches] = useState([]);
+            const [players, setPlayers] = useState([]);
+            const [invitations, setInvitations] = useState([]);
+            const [myTeam, setMyTeam] = useState(null);
+            const [loading, setLoading] = useState(true);
+            
+            // Modales
+            const [showLoginModal, setShowLoginModal] = useState(false);
+            const [showInviteModal, setShowInviteModal] = useState(false);
+            const [showCreateTeamModal, setShowCreateTeamModal] = useState(false);
+            const [showPublishModal, setShowPublishModal] = useState(false);
+            
+            // Forms
+            const [targetPlayer, setTargetPlayer] = useState(null);
+            const [inviteData, setInviteData] = useState({ place: '', time: '' });
+            const [newTeamName, setNewTeamName] = useState('');
+            const [publishData, setPublishData] = useState({ type: 'player', format: 'F5', zone: 'La Plata (Casco Urbano)', place: '', time: '', missing: 1, position: 'Cualquiera' });
+
+            const isAdmin = user && ADMIN_EMAILS.includes(user.email);
+            const myMatches = user ? matches.filter(m => m.playersSigned?.includes(user.uid)) : [];
+            const myPlayerProfile = user ? players.find(p => p.uid === user.uid) : null;
+            const userRating = myPlayerProfile?.rating || 0;
+            const pendingInvitations = invitations.filter(inv => inv.status === 'pending');
+            const isCaptain = myTeam && myTeam.captainId === user?.uid;
+
+            // --- AUTH & INIT ---
+            useEffect(() => {
+                const init = async () => {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        try { await signInWithCustomToken(auth, __initial_auth_token); } catch(e) { console.log("Token auth skipped"); }
+                    }
+                    
+                    onAuthStateChanged(auth, async (u) => {
+                        if (u) {
+                            setUser(u.isAnonymous ? null : u);
+                            subscribeToData();
+                        } else {
+                            try { await signInAnonymously(auth); } catch(e) { 
+                                console.error("Anon auth failed", e); 
+                                setMatches(FALLBACK_MATCHES);
+                                setPlayers(FALLBACK_PLAYERS);
+                                setLoading(false);
+                            }
+                        }
+                    });
+                };
+                init();
+            }, []);
+
+            // --- DATA SYNC ---
+            useEffect(() => {
+                if (!user || !db) return;
+                
+                try {
+                    const qTeam = collection(db, 'artifacts', appId, 'public', 'data', 'teams');
+                    onSnapshot(qTeam, (s) => {
+                        const found = s.docs.map(d => ({id: d.id, ...d.data()}))
+                            .find(t => t.captainId === user.uid || t.members?.some(m => m.uid === user.uid));
+                        setMyTeam(found || null);
+                    });
+
+                    const qInv = collection(db, 'artifacts', appId, 'public', 'data', 'invitations');
+                    onSnapshot(qInv, (s) => {
+                        const all = s.docs.map(d => ({id: d.id, ...d.data()}));
+                        const mine = all.filter(i => i.toUserId === user.uid).sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0));
+                        setInvitations(mine);
+                    });
+                } catch(e) { console.error("Error syncing user data", e); }
+            }, [user]);
+
+            const subscribeToData = () => {
+                if (!db) return;
+                try {
+                    const qM = collection(db, 'artifacts', appId, 'public', 'data', 'matches');
+                    onSnapshot(qM, (s) => {
+                        const data = s.docs.map(d => ({id: d.id, ...d.data()}));
+                        setMatches(data.length ? data : FALLBACK_MATCHES);
+                        setLoading(false);
+                    }, (err) => {
+                        console.error(err);
+                        setMatches(FALLBACK_MATCHES);
+                        setLoading(false);
+                    });
+
+                    const qP = collection(db, 'artifacts', appId, 'public', 'data', 'players');
+                    onSnapshot(qP, (s) => {
+                        const data = s.docs.map(d => ({id: d.id, ...d.data()}));
+                        setPlayers(data.length ? data : FALLBACK_PLAYERS);
+                    });
+                } catch(e) {
+                    console.error("Error subscribing", e);
+                    setLoading(false);
+                }
+            };
+
+            // --- HANDLERS ---
+            const handleGoogleLogin = async () => {
+                try { await signInWithPopup(auth, new GoogleAuthProvider()); setView('app'); }
+                catch (e) { alert("No se pudo iniciar sesión (Verifica tu configuración de Firebase). Error: " + e.message); }
+            };
+            const handleLogout = async () => { await signOut(auth); setView('landing'); setIsMenuOpen(false); };
+            const handleGuest = () => setView('app');
+
+            // --- RENDER HELPERS ---
+            const StarRating = ({ rating }) => (
+                <div className="flex gap-0.5">
+                    {[...Array(5)].map((_, i) => (
+                        <Star key={i} size={10} className={i < rating ? 'fill-yellow-400 text-yellow-600' : 'fill-gray-400 text-gray-500'} />
+                    ))}
+                </div>
+            );
+
+            // --- VISTAS ---
+            
+            // 1. LANDING
+            if (view === 'landing') {
+                return (
+                    <div className="flex-1 flex flex-col items-center justify-center p-6 text-center bg-gradient-to-br from-[#003300] to-[#001a00] relative overflow-hidden">
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,_rgba(0,255,85,0.1),_transparent_70%)]"></div>
+                        <div className="z-10 mb-12 transform hover:scale-105 transition-transform duration-500">
+                            <div className="inline-flex p-6 bg-black/30 rounded-full border-4 border-[#00ff55] shadow-[0_0_50px_rgba(0,255,85,0.4)] mb-6">
+                                <LinkIcon size={64} className="text-[#00ff55] -rotate-45" />
+                            </div>
+                            <h1 className="text-5xl sm:text-7xl font-black italic tracking-tighter text-white drop-shadow-2xl">
+                                EL <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00ff55] to-[#ccffcc]">ENGANCHE</span>
+                            </h1>
+                            <p className="text-gray-400 uppercase tracking-widest text-xs sm:text-sm mt-4 font-bold">Fútbol Amateur La Plata</p>
+                        </div>
+                        <div className="z-10 w-full max-w-sm space-y-4">
+                            {user ? (
+                                <button onClick={() => setView('app')} className="w-full bg-[#00ff55] hover:bg-white text-black font-black py-4 rounded-xl shadow-[0_0_20px_rgba(0,255,85,0.4)] flex items-center justify-center gap-2 uppercase tracking-wide transition-all">
+                                    <User size={24}/> Continuar como {user.displayName?.split(' ')[0]}
+                                </button>
+                            ) : (
+                                <button onClick={handleGoogleLogin} className="w-full bg-white hover:bg-gray-200 text-black font-black py-4 rounded-xl shadow-xl flex items-center justify-center gap-2 transition-all">
+                                    <svg className="w-5 h-5" viewBox="0 0 24 24"><path fill="currentColor" d="M21.35 11.1h-9.17v2.73h6.51c-.33 3.81-3.5 5.44-6.5 5.44C8.36 19.27 5 16.25 5 12c0-4.1 3.2-7.27 7.2-7.27 3.09 0 4.9 1.97 4.9 1.97L19 4.72S16.56 2 12.1 2C6.42 2 2.03 6.8 2.03 12.5S6.42 23 12.09 23c5.83 0 8.8-4.15 8.8-10.24 0-.68-.04-1.33-.12-1.66h-.42z"/></svg>
+                                    INGRESAR CON GOOGLE
+                                </button>
+                            )}
+                            <button onClick={handleGuest} className="w-full bg-white/5 hover:bg-white/10 text-[#00ff55] border-2 border-[#00ff55]/50 font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-all">
+                                <Users size={20}/> Entrar como Invitado
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
+            // 2. APP UI
+            const filteredMatches = matches.filter(m => (formatFilter === 'Todos' || m.format === formatFilter) && (zoneFilter === 'Todas' || m.zone === zoneFilter));
+
+            const mockAction = (msg) => {
+                if(!user) return setShowLoginModal(true);
+                alert(msg + " (Lógica conectada a Firebase)");
+            }
+
+            return (
+                <div className="flex-1 flex flex-col">
+                    {/* Header */}
+                    <header className="bg-gradient-to-r from-[#003300] to-[#004d26] border-b-4 border-[#00ff55] sticky top-0 z-50 shadow-xl">
+                        <div className="max-w-6xl mx-auto px-3 h-16 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-1 hover:bg-white/10 rounded"><Menu size={24} className="text-[#00ff55]"/></button>
+                                <div className="font-black italic text-2xl tracking-tighter cursor-pointer flex items-center" onClick={() => setView('landing')}>
+                                    EL <span className="text-[#00ff55]">ENGANCHE</span> <LinkIcon size={16} className="text-[#00ff55] -rotate-45 ml-1"/>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <button onClick={() => user ? setShowPublishModal(true) : setShowLoginModal(true)} className="bg-[#00ff55] text-black px-3 py-1.5 rounded shadow-[0_0_10px_rgba(0,255,85,0.4)] hover:bg-white font-black uppercase text-xs flex items-center gap-1">
+                                    <PlusCircle size={14}/> <span className="hidden sm:inline">Publicar</span>
+                                </button>
+                                {user ? (
+                                    <div className="flex items-center gap-3">
+                                        <button className="relative p-2" onClick={() => setShowNotifications(!showNotifications)}>
+                                            <Bell size={20} className={pendingInvitations.length > 0 ? "text-[#00ff55] animate-pulse" : "text-gray-300"}/>
+                                            {pendingInvitations.length > 0 && <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>}
+                                        </button>
+                                        <div className="hidden xs:flex items-center gap-2 cursor-pointer" onClick={() => setView('profile')}>
+                                            <div className="text-right leading-none"><span className="text-[10px] text-gray-400">Jugador</span><div className="font-bold text-[#00ff55] text-xs">{user.displayName?.split(' ')[0]}</div></div>
+                                            <div className="w-8 h-8 rounded-full border border-gray-600 bg-gray-800 overflow-hidden">
+                                                {user.photoURL ? <img src={user.photoURL} className="w-full h-full object-cover"/> : <User className="p-1 text-white"/>}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <button onClick={() => setShowLoginModal(true)} className="text-xs font-bold text-[#00ff55] flex items-center gap-1"><User size={14}/> INGRESAR</button>
+                                )}
+                            </div>
+                        </div>
+                        {/* Mobile/Burger Menu */}
+                        {isMenuOpen && (
+                            <div className="absolute top-full left-0 w-full bg-[#1a1a1a] border-t border-gray-700 shadow-2xl z-50 animate-in slide-in-from-top-2">
+                                {user ? (
+                                    <div className="flex flex-col">
+                                        <div className="p-4 border-b border-gray-800 bg-gray-900 cursor-pointer" onClick={() => setIsProfileExpanded(!isProfileExpanded)}>
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 rounded-full border-2 border-[#00ff55] overflow-hidden">{user.photoURL ? <img src={user.photoURL} className="w-full h-full object-cover"/> : <User className="p-2 text-white"/>}</div>
+                                                    <div><div className="text-white font-black">{user.displayName}</div><div className="text-xs text-[#00ff55]">En línea</div></div>
+                                                </div>
+                                                {isProfileExpanded ? <ChevronUp className="text-gray-500"/> : <ChevronDown className="text-gray-500"/>}
+                                            </div>
+                                            {isProfileExpanded && (
+                                                <div className="mt-4 space-y-3 pl-2 border-l-2 border-[#00ff55]/30">
+                                                    <div className="text-xs text-gray-400 uppercase font-bold">Mi Actividad</div>
+                                                    <div className="text-sm text-white flex items-center gap-2"><Calendar size={14} className="text-[#00ff55]"/> {myMatches.length} Partidos</div>
+                                                    <div className="text-sm text-white flex items-center gap-2"><Users size={14} className="text-[#00ff55]"/> {myPlayerProfile ? 'Ficha Activa' : 'Sin Ficha'}</div>
+                                                    <button onClick={() => { setView('profile'); setIsMenuOpen(false); }} className="text-[#00ff55] text-xs font-bold hover:underline block py-1">Ver Perfil Completo &rarr;</button>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <button onClick={handleLogout} className="w-full py-3 text-red-500 font-bold text-xs uppercase bg-black/20 hover:bg-red-900/20">Cerrar Sesión</button>
+                                    </div>
+                                ) : (
+                                    <div className="p-4"><button onClick={() => setShowLoginModal(true)} className="w-full bg-[#00ff55] text-black font-bold py-3 rounded uppercase">Iniciar Sesión</button></div>
+                                )}
+                            </div>
+                        )}
+                    </header>
+
+                    {/* Ticker */}
+                    <div className="bg-black py-2 px-3 border-b border-gray-800 text-xs flex items-center text-gray-400 overflow-hidden whitespace-nowrap">
+                        <span className="text-[#00ff55] mr-2 animate-pulse">●</span> <span className="font-bold text-gray-200 mr-1">MERCADO:</span> Mostrando {filteredMatches.length} partidos y {players.length} agentes libres en zona La Plata.
+                    </div>
+
+                    {/* Main */}
+                    <main className="flex-1 max-w-6xl mx-auto w-full p-2 sm:p-4 grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        
+                        {view === 'profile' && user ? (
+                            <div className="lg:col-span-12 space-y-4">
+                                <div className="bg-[#1a1a1a] p-6 rounded-lg border border-gray-800 flex flex-col sm:flex-row items-center gap-6">
+                                    <div className="w-24 h-24 rounded-full border-4 border-[#00ff55] overflow-hidden bg-black">{user.photoURL ? <img src={user.photoURL} className="w-full h-full object-cover"/> : <User className="w-full h-full p-4 text-gray-500"/>}</div>
+                                    <div className="text-center sm:text-left flex-1">
+                                        <h1 className="text-3xl font-black italic">{user.displayName}</h1>
+                                        <p className="text-gray-400 text-sm">{user.email}</p>
+                                        <div className="flex gap-3 justify-center sm:justify-start mt-3">
+                                            <div className="bg-black/40 px-3 py-1 rounded border border-gray-700 flex items-center gap-2 text-white"><Star size={14} className="text-yellow-500 fill-yellow-500"/> {userRating.toFixed(1)}</div>
+                                            {myTeam && <div className="bg-[#00ff55]/10 px-3 py-1 rounded border border-[#00ff55]/30 text-[#00ff55] font-bold flex items-center gap-2"><Shield size={14}/> {myTeam.name}</div>}
+                                        </div>
+                                    </div>
+                                </div>
+                                {/* Team Section Placeholder */}
+                                <div className="bg-[#1a1a1a] rounded-lg border border-gray-800 p-4">
+                                    <h3 className="font-bold text-white flex items-center gap-2 mb-4"><Shield size={18} className="text-[#00ff55]"/> Mi Equipo</h3>
+                                    {myTeam ? (
+                                        <div>
+                                            <div className="text-xl font-black italic mb-2">{myTeam.name}</div>
+                                            <div className="space-y-1">
+                                                {myTeam.members?.map(m => (
+                                                    <div key={m.uid} className={`flex justify-between p-2 rounded border border-gray-800 ${m.status === 'injured' ? 'bg-red-900/10' : 'bg-black/30'}`}>
+                                                        <div className="text-gray-300 flex items-center gap-2">{m.name} {m.role === 'captain' && <Crown size={12} className="text-yellow-500"/>}</div>
+                                                        {isCaptain && m.uid !== user.uid && (
+                                                            <button onClick={() => {
+                                                                const newStatus = m.status === 'active' ? 'injured' : 'active';
+                                                                const newMembers = myTeam.members.map(x => x.uid === m.uid ? {...x, status: newStatus} : x);
+                                                                updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'teams', myTeam.id), { members: newMembers });
+                                                            }} className="text-gray-500 hover:text-white"><Activity size={16}/></button>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="text-center py-4">
+                                            <p className="text-gray-500 text-sm mb-3">No tienes equipo.</p>
+                                            <button onClick={() => setShowCreateTeamModal(true)} className="bg-[#00ff55] text-black font-bold px-4 py-2 rounded text-xs inline-flex items-center gap-2 mx-auto"><PlusCircle size={14}/> Crear Equipo</button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ) : (
+                            <>
+                                {/* Partidos */}
+                                <div className="lg:col-span-8 space-y-4">
+                                    <div className="bg-gradient-to-r from-[#1b4d2e] to-[#2e7d32] px-4 py-3 rounded-t-lg border-b-2 border-[#4caf50] flex flex-wrap gap-2 justify-between items-center text-white">
+                                        <h2 className="font-bold flex items-center gap-2"><Calendar size={20} className="text-[#00ff55]"/> PARTIDOS</h2>
+                                        <div className="flex gap-2">
+                                            <select className="bg-black/30 rounded text-xs p-1 border border-white/20 outline-none" onChange={e => setFormatFilter(e.target.value)}><option value="Todos">Fmt: Todos</option><option value="F5">F5</option><option value="F7">F7</option></select>
+                                            <select className="bg-black/30 rounded text-xs p-1 border border-white/20 outline-none" onChange={e => setZoneFilter(e.target.value)}>{LA_PLATA_ZONES.map(z=><option key={z} value={z}>{z}</option>)}</select>
+                                        </div>
+                                    </div>
+                                    <div className="bg-[#dce6dc] rounded-b-lg overflow-hidden text-gray-800">
+                                        {loading ? <div className="p-8 text-center text-gray-500">Cargando partidos...</div> : 
+                                         filteredMatches.length === 0 ? <div className="p-8 text-center text-gray-500">No hay partidos con estos filtros.</div> :
+                                         filteredMatches.map(m => (
+                                            <div key={m.id} className="p-3 border-b border-gray-300 flex justify-between items-center hover:bg-white transition-colors">
+                                                <div>
+                                                    <div className="font-bold text-sm flex gap-2 items-center">{m.teamName} <span className="bg-black text-[#00ff55] text-[10px] px-1 rounded">{m.format}</span></div>
+                                                    <div className="text-xs text-gray-600 flex gap-1 items-center mt-0.5"><MapPin size={10}/> {m.place} | {m.zone}</div>
+                                                    <div className="text-xs font-mono text-green-800 font-bold mt-1">⏰ {m.time}</div>
+                                                </div>
+                                                <div className="text-right">
+                                                    {m.type === 'rival' ? <span className="bg-black text-[#00ff55] px-2 py-1 rounded text-[10px] font-bold border border-[#00ff55]">RIVAL</span> : 
+                                                    <div className="flex flex-col items-center"><span className="font-bold text-lg leading-none">{m.missing}</span><span className="text-[9px] uppercase font-bold text-gray-500">Faltan</span></div>}
+                                                </div>
+                                                <button onClick={() => handleJoinMatch(m)} className={`px-3 py-1.5 rounded text-xs font-bold border-b-2 ${m.playersSigned?.includes(user?.uid) ? 'bg-red-600 text-white border-red-800' : 'bg-[#008f45] text-white border-[#006400]'}`}>
+                                                    {m.playersSigned?.includes(user?.uid) ? 'Salir' : 'Anotarme'}
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Jugadores */}
+                                <div className="lg:col-span-4 space-y-4">
+                                    <div className="bg-[#212121] text-white px-4 py-3 rounded-t-lg border-t-4 border-[#00ff55] font-bold text-sm flex items-center gap-2"><Users size={16} className="text-[#00ff55]"/> AGENTES LIBRES</div>
+                                    <div className="bg-[#dce6dc] border border-gray-600 rounded-b-lg shadow-md p-2 space-y-2">
+                                        {players.map(p => (
+                                            <div key={p.id} className="bg-white p-2 rounded shadow-sm flex justify-between items-center">
+                                                <div className="flex gap-2 items-center">
+                                                    <div className="w-8 h-8 bg-gray-200 rounded flex items-center justify-center font-bold text-gray-700">{p.name[0]}</div>
+                                                    <div>
+                                                        <div className="font-bold text-xs uppercase">{p.name}</div>
+                                                        <div className="text-[10px] text-gray-500">{p.position}</div>
+                                                    </div>
+                                                </div>
+                                                <button onClick={() => mockAction(`Invitar a ${p.name}`)} className="text-[#006400] text-[10px] font-bold border border-green-200 px-2 py-1 rounded hover:bg-green-50 uppercase">Invitar</button>
+                                            </div>
+                                        ))}
+                                        <button onClick={() => mockAction('Postularse')} className="w-full bg-[#212121] text-[#00ff55] font-bold text-xs py-2 rounded mt-2 uppercase border border-gray-600 hover:border-[#00ff55]">Postularme</button>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                    </main>
+
+                    {/* Modales Básicos */}
+                    {showLoginModal && (
+                        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[100]">
+                            <div className="bg-[#1a1a1a] p-6 rounded border border-[#00ff55] w-full max-w-sm">
+                                <h3 className="text-white font-bold mb-4">ACCESO REQUERIDO</h3>
+                                <button onClick={handleGoogleLogin} className="w-full bg-white text-black font-bold py-2.5 rounded flex justify-center gap-2 mb-3"><svg className="w-5 h-5" viewBox="0 0 24 24"><path fill="currentColor" d="M21.35 11.1h-9.17v2.73h6.51c-.33 3.81-3.5 5.44-6.5 5.44C8.36 19.27 5 16.25 5 12c0-4.1 3.2-7.27 7.2-7.27 3.09 0 4.9 1.97 4.9 1.97L19 4.72S16.56 2 12.1 2C6.42 2 2.03 6.8 2.03 12.5S6.42 23 12.09 23c5.83 0 8.8-4.15 8.8-10.24 0-.68-.04-1.33-.12-1.66h-.42z"/></svg> Google</button>
+                                <button onClick={() => setShowLoginModal(false)} className="text-gray-500 text-xs w-full text-center">Cancelar</button>
+                            </div>
+                        </div>
+                    )}
+
+                    <footer className="bg-[#0f0f0f] text-gray-500 text-xs text-center py-8 mt-12 border-t border-gray-800">
+                        <p className="mb-3 font-medium text-gray-400">EL ENGANCHE © 2026</p>
+                        <div className="flex justify-center gap-6 mb-4 font-bold text-gray-600 uppercase tracking-wider">
+                            <span className="flex gap-1 items-center hover:text-[#00ff55] cursor-pointer"><FileText size={14}/> Reglamento</span>
+                            <span className="flex gap-1 items-center hover:text-[#00ff55] cursor-pointer"><HelpCircle size={14}/> Soporte</span>
+                            <span className="flex gap-1 items-center hover:text-[#00ff55] cursor-pointer"><LockIcon size={14}/> Privacidad</span>
+                        </div>
+                    </footer>
+                </div>
+            );
+        };
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
