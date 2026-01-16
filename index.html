@@ -99,7 +99,9 @@
         }
 
         const appId = 'el-enganche-web';
+        // AQUÍ ESTÁ TU MAIL COMO ADMIN PARA TENER PODERES DE BORRADO
         const ADMIN_EMAILS = ["worlddigital2011@gmail.com", "admin@elenganche.com"];
+        
         const LA_PLATA_ZONES = [
             "Todas", "La Plata (Casco Urbano)", "City Bell", "Villa Elisa", 
             "Manuel B. Gonnet", "Arturo Seguí", "Ringuelet", "Tolosa", 
@@ -126,10 +128,6 @@
             { name: 'Lucho M.', position: 'Arquero', zone: 'Villa Elisa', rating: 4, status: 'Disponible' },
             { name: 'Facu "La Joya"', position: 'Delantero', zone: 'La Plata (Casco Urbano)', rating: 5, status: 'Escuchando ofertas' },
             { name: 'Juan P.', position: 'Medio', zone: 'Los Hornos', rating: 4, status: 'Disponible' },
-            { name: 'Esteban La Roca', position: 'Defensor', zone: 'Arturo Seguí', rating: 3, status: 'Disponible' },
-            { name: 'Pedro Picapiedra', position: 'Defensor', zone: 'Tolosa', rating: 4, status: 'Disponible' },
-            { name: 'Santi Cazorla', position: 'Medio', zone: 'City Bell', rating: 5, status: 'Disponible' },
-            { name: 'Dibu Martinez Jr', position: 'Arquero', zone: 'Villa Elvira', rating: 5, status: 'Disponible' }
         ];
 
         // --- COMPONENTE APP ---
@@ -338,17 +336,23 @@
                 }
             };
             
+            // --- DELETE LOGIC (ADMIN OR SELF) ---
             const handleDeletePlayer = async (id) => {
                 if (!user) return;
+                // SI ES ADMIN O SI ES EL PROPIO USUARIO
                 if ((isAdmin || players.find(p=>p.id===id)?.uid === user?.uid) && confirm("¿ESTÁS SEGURO? Vas a eliminar a este jugador de la lista.")) {
                     await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'players', id));
                 }
             };
 
-            const handleDeleteMatch = async (id) => {
+            const handleDeleteMatch = async (idMatch) => {
                 if (!user) return;
-                if(isAdmin && confirm("¿ESTÁS SEGURO? Vas a eliminar este partido.")) {
-                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'matches', id));
+                // SI ES ADMIN O EL CREADOR DEL PARTIDO
+                const match = matches.find(m => m.id === idMatch);
+                const isCreator = match && match.createdBy === user.uid;
+
+                if((isAdmin || isCreator) && confirm("¿ESTÁS SEGURO? Vas a eliminar este partido.")) {
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'matches', idMatch));
                 }
             };
 
@@ -781,9 +785,20 @@
                                                         </div>
                                                     )}
                                                 </div>
-                                                <button onClick={() => handleJoinMatch(m)} className={`px-3 py-1.5 rounded text-xs font-bold border-b-2 ${m.playersSigned?.includes(user?.uid) ? 'bg-red-600 text-white border-red-800' : 'bg-[#008f45] text-white border-[#006400]'}`}>
-                                                    {m.playersSigned?.includes(user?.uid) ? 'Salir' : 'Anotarme'}
-                                                </button>
+                                                <div className="flex items-center gap-2">
+                                                    {isAdmin && (
+                                                        <button 
+                                                            onClick={() => handleDeleteMatch(m.id)} 
+                                                            className="p-1.5 rounded bg-red-900/20 text-red-500 border border-red-900/50 hover:bg-red-900/40"
+                                                            title="Borrar partido (Admin)"
+                                                        >
+                                                            <Trash2 size={14}/>
+                                                        </button>
+                                                    )}
+                                                    <button onClick={() => handleJoinMatch(m)} className={`px-3 py-1.5 rounded text-xs font-bold border-b-2 ${m.playersSigned?.includes(user?.uid) ? 'bg-red-600 text-white border-red-800' : 'bg-[#008f45] text-white border-[#006400]'}`}>
+                                                        {m.playersSigned?.includes(user?.uid) ? 'Salir' : 'Anotarme'}
+                                                    </button>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
@@ -802,11 +817,22 @@
                                                         <div className="text-[10px] text-gray-500">{p.position}</div>
                                                     </div>
                                                 </div>
-                                                {user && p.uid === user.uid ? (
-                                                    <button onClick={() => handleDeletePlayer(p.id)} className="text-red-500 text-[10px] font-bold border border-red-200 px-2 py-1 rounded hover:bg-red-50">BAJARME</button>
-                                                ) : (
-                                                    isCaptain && <button onClick={() => openInviteModal(p)} className="text-[#006400] text-[10px] font-bold border border-green-200 px-2 py-1 rounded hover:bg-green-50 uppercase">Invitar</button>
-                                                )}
+                                                <div className="flex gap-2 items-center">
+                                                    {isAdmin && (
+                                                        <button 
+                                                            onClick={() => handleDeletePlayer(p.id)} 
+                                                            className="p-1.5 rounded bg-red-900/20 text-red-500 border border-red-900/50 hover:bg-red-900/40"
+                                                            title="Borrar jugador (Admin)"
+                                                        >
+                                                            <Trash2 size={14}/>
+                                                        </button>
+                                                    )}
+                                                    {user && p.uid === user.uid ? (
+                                                        <button onClick={() => handleDeletePlayer(p.id)} className="text-red-500 text-[10px] font-bold border border-red-200 px-2 py-1 rounded hover:bg-red-50">BAJARME</button>
+                                                    ) : (
+                                                        isCaptain && <button onClick={() => openInviteModal(p)} className="text-[#006400] text-[10px] font-bold border border-green-200 px-2 py-1 rounded hover:bg-green-50 uppercase">Invitar</button>
+                                                    )}
+                                                </div>
                                             </div>
                                         ))}
                                         <button onClick={handleJoinAsPlayer} className="w-full bg-[#212121] text-[#00ff55] font-bold text-xs py-2 rounded mt-2 uppercase border border-gray-600 hover:border-[#00ff55]">Postularme</button>
