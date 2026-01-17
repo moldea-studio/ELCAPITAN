@@ -10,8 +10,6 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="El Enganche">
-    
-    <!-- Placeholder para el ícono generado dinámicamente -->
     <link rel="apple-touch-icon" id="apple-icon">
     <link rel="icon" type="image/png" id="favicon">
     <link rel="manifest" id="manifest-placeholder">
@@ -155,7 +153,7 @@
 
         const App = () => {
             const [view, setView] = useState('landing');
-            const [isMenuOpen, setIsMenuOpen] = useState(false);
+            const [isMenuOpen, setIsMenuOpen] = useState(false); // Aunque no se use visualmente, se mantiene por si acaso
             const [isProfileExpanded, setIsProfileExpanded] = useState(false);
             const [showNotifications, setShowNotifications] = useState(false);
             const [formatFilter, setFormatFilter] = useState('Todos');
@@ -499,16 +497,13 @@
                     <header className="bg-gradient-to-r from-[#003300] to-[#004d26] border-b-4 border-[#00ff55] sticky top-0 z-50 shadow-xl">
                         <div className="max-w-6xl mx-auto px-3 h-16 flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <button onClick={() => { if(isMenuOpen) setIsMenuOpen(false); else if(user) setView('profile'); }} className="p-1 hover:bg-white/10 rounded hidden"><Menu size={24} className="text-[#00ff55]"/></button>
                                 <div className="font-black italic text-2xl tracking-tighter cursor-pointer flex items-center" onClick={() => setView('landing')}>EL <span className="text-[#00ff55]">ENGANCHE</span> <LinkIcon size={16} className="text-[#00ff55] -rotate-45 ml-1"/></div>
                             </div>
                             <div className="flex items-center gap-3">
-                                <div className="hidden md:flex gap-1 text-xs font-bold text-green-100 items-center mr-4">
-                                    <button onClick={() => setShowMapModal(true)} className="hover:text-white hover:bg-white/10 px-3 py-2 rounded transition-all">Canchas</button>
-                                </div>
                                 <div className="flex gap-2">
                                     <button onClick={handleClickHeaderButton} className="bg-[#00ff55] text-black px-3 py-1.5 rounded shadow-[0_0_10px_rgba(0,255,85,0.4)] hover:bg-white font-black uppercase text-xs flex items-center gap-1"><PlusCircle size={14}/> <span className="hidden sm:inline">{!myTeam ? "CREAR EQUIPO" : "PUBLICAR"}</span></button>
                                     <button onClick={handleInstallClick} className="bg-gray-800 text-[#00ff55] border border-[#00ff55] px-3 py-1.5 rounded shadow-[0_0_10px_rgba(0,255,85,0.2)] hover:bg-[#00ff55] hover:text-black font-black uppercase text-xs flex items-center gap-1 transition-all"><Download size={14}/> <span className="hidden sm:inline">App</span></button>
+                                    <button onClick={() => setShowMapModal(true)} className="bg-gray-800 text-white border border-gray-600 px-3 py-1.5 rounded shadow-sm hover:bg-gray-700 flex items-center gap-1 transition-all"><MapPin size={14}/> <span className="hidden sm:inline">Canchas</span></button>
                                 </div>
                                 {user ? (
                                     <div className="flex items-center gap-3">
@@ -516,41 +511,10 @@
                                             <Bell size={20} className={pendingInvitations.length > 0 ? "text-[#00ff55] animate-pulse" : "text-gray-300"}/>
                                             {pendingInvitations.length > 0 && <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>}
                                         </button>
-                                        <div className="hidden xs:flex items-center gap-2 cursor-pointer" onClick={() => setView('profile')}>
-                                            <div className="w-8 h-8 rounded-full border border-gray-600 bg-gray-800 overflow-hidden">{user.photoURL ? <img src={user.photoURL} className="w-full h-full object-cover"/> : <User className="p-1 text-white"/>}</div>
-                                        </div>
                                     </div>
                                 ) : (<button onClick={() => setShowLoginModal(true)} className="text-xs font-bold text-[#00ff55] flex items-center gap-1"><User size={14}/> INGRESAR</button>)}
                             </div>
                         </div>
-                        {isMenuOpen && (
-                            <div className="absolute top-full left-0 w-full bg-[#1a1a1a] border-t border-gray-700 shadow-2xl z-50 animate-in slide-in-from-top-2">
-                                {user ? (
-                                    <div className="flex flex-col">
-                                        <div className="p-4 border-b border-gray-800 bg-gray-900 cursor-pointer" onClick={() => setIsProfileExpanded(!isProfileExpanded)}>
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-full border-2 border-[#00ff55] overflow-hidden">{user.photoURL ? <img src={user.photoURL} className="w-full h-full object-cover"/> : <User className="p-2 text-white"/>}</div>
-                                                    <div><div className="text-white font-black">{user.displayName}</div><div className="text-xs text-[#00ff55]">En línea</div></div>
-                                                </div>
-                                                {isProfileExpanded ? <ChevronUp className="text-gray-500"/> : <ChevronDown className="text-gray-500"/>}
-                                            </div>
-                                            {isProfileExpanded && (
-                                                <div className="mt-4 space-y-3 pl-2 border-l-2 border-[#00ff55]/30">
-                                                    <div className="text-xs text-gray-400 uppercase font-bold">Mi Actividad</div>
-                                                    <div className="text-sm text-white flex items-center gap-2"><Calendar size={14} className="text-[#00ff55]"/> {myMatches.length} Partidos</div>
-                                                    <div className="text-sm text-white flex items-center gap-2"><Users size={14} className="text-[#00ff55]"/> {myPlayerProfile ? 'Ficha Activa' : 'Sin Ficha'}</div>
-                                                    <button onClick={() => { setView('profile'); setIsMenuOpen(false); }} className="text-[#00ff55] text-xs font-bold hover:underline block py-1">Ver Perfil Completo &rarr;</button>
-                                                </div>
-                                            )}
-                                        </div>
-                                        <button onClick={handleLogout} className="w-full py-3 text-red-500 font-bold text-xs uppercase bg-black/20 hover:bg-red-900/20">Cerrar Sesión</button>
-                                    </div>
-                                ) : (
-                                    <div className="p-4"><button onClick={() => setShowLoginModal(true)} className="w-full bg-[#00ff55] text-black font-bold py-3 rounded uppercase">Iniciar Sesión</button></div>
-                                )}
-                            </div>
-                        )}
                         {showNotifications && (
                              <div className="absolute top-16 right-2 w-72 bg-[#1a1a1a] border border-gray-700 rounded-lg shadow-2xl z-[60]">
                                  <div className="p-3 bg-gray-900 border-b border-gray-800 font-bold text-xs text-gray-400 uppercase tracking-wider">Invitaciones ({pendingInvitations.length})</div>
