@@ -49,7 +49,7 @@
 
     <!-- Estilos base -->
     <style>
-        body { background-color: #111827; color: #e5e7eb; font-family: sans-serif; padding-bottom: 70px; }
+        body { background-color: #111827; color: #e5e7eb; font-family: sans-serif; padding-bottom: 80px; }
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #1a1a1a; }
         ::-webkit-scrollbar-thumb { background: #00ff55; border-radius: 4px; }
@@ -95,7 +95,7 @@
         import { 
             getFirestore, collection, query, onSnapshot, doc, updateDoc, increment, 
             arrayUnion, arrayRemove, addDoc, serverTimestamp, deleteDoc, where, 
-            orderBy, getDoc, setDoc, getDocs
+            orderBy, getDoc, setDoc, getDocs, Timestamp
         } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
         window.onerror = function(message, source, lineno, colno, error) {
@@ -149,26 +149,19 @@
         // --- GENERADOR DE FECHAS PARA DUMMY DATA ---
         const today = new Date().toISOString().split('T')[0];
         const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
-        const yesterday = new Date(Date.now() - 86400000 * 2).toISOString().split('T')[0]; // 2 días atrás para permitir calificar
+        const yesterday = new Date(Date.now() - 86400000 * 2).toISOString().split('T')[0];
+        const nextWeek = new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0];
+        const maxPublishDate = new Date(Date.now() + 86400000 * 7).toISOString().split('T')[0];
 
         const INITIAL_MATCHES = [
-            // Partido Pasado (Para probar calificación)
             { date: yesterday, time: '20:00', place: 'Predio El Rincón', zone: 'La Plata (Casco Urbano)', format: 'F5', type: 'player', missing: 0, position: 'Arquero', teamName: 'Los Rotos FC', urgent: false, playersSigned: ['dummy_1', 'dummy_2'], level: 'Picado Medio ⚽' },
-            
-            // Desafío Económico (Cancha)
             { date: today, time: '21:00', place: 'Club Atl. Villa Elisa', zone: 'Villa Elisa', format: 'F7', type: 'rival', isChallenge: true, stake: 'La cancha (aprox $30.000)', missing: 0, position: 'Equipo Completo', teamName: 'Defensores VE', urgent: true, level: 'A Morir (Competitivo) 🏆' },
-            
-            // Partido normal buscando jugadores
             { date: tomorrow, time: '19:00', place: 'La Plaza', zone: 'City Bell', format: 'F5', type: 'player', missing: 2, position: 'Defensores', teamName: 'Inter CB', urgent: false, level: 'Tranqui / Joda 🍻' },
-            
-            // Desafío "Cajón de Cerveza"
             { date: today, time: '23:00', place: 'Complejo 44', zone: 'San Carlos', format: 'F9', type: 'rival', isChallenge: true, stake: 'Un cajón de cerveza 🍺', missing: 0, position: 'Equipo', teamName: 'San Carlos Jr', urgent: true, level: 'Picado Medio ⚽' },
-            
-            // Desafío "Asado"
             { date: tomorrow, time: '20:00', place: 'Lawn Tennis', zone: 'La Plata (Casco Urbano)', format: 'F5', type: 'rival', isChallenge: true, stake: 'El Asado del 3T 🥩', missing: 0, position: 'Equipo', teamName: 'Los Parrilleros', urgent: false, level: 'Tranqui / Joda 🍻' },
-            
-            // Partido normal buscando jugador
             { date: tomorrow, time: '22:00', place: 'Estación Norte', zone: 'Ringuelet', format: 'F5', type: 'player', missing: 1, position: 'Cualquiera', teamName: 'La Máquina', urgent: false, level: 'Picado Medio ⚽' },
+            { date: nextWeek, time: '21:30', place: 'El Galpón', zone: 'Los Hornos', format: 'F6', type: 'rival', isChallenge: true, stake: 'Por el honor y las camisetas', missing: 0, position: 'Equipo', teamName: 'Deportivo Mate', urgent: false, level: 'Picado Medio ⚽' },
+            { date: today, time: '18:00', place: 'Las Palmas', zone: 'Villa Elvira', format: 'F5', type: 'player', missing: 1, position: 'Arquero (Urgente)', teamName: 'Sin Manos FC', urgent: true, level: 'Tranqui / Joda 🍻' }
         ];
 
         const INITIAL_PLAYERS = [
@@ -177,7 +170,24 @@
             { uid: 'dummy_3', name: 'Santi G.', position: 'Delantero', zone: 'Gonnet', rating: 3.2, ratingCount: 5, status: 'Disponible', level: 'Tranqui / Joda 🍻' },
             { uid: 'dummy_4', name: 'El Muro', position: 'Defensor', zone: 'Tolosa', rating: 4.0, ratingCount: 8, status: 'Lesionado', level: 'A Morir (Competitivo) 🏆' },
             { uid: 'dummy_5', name: 'Alejo B.', position: 'Polifuncional', zone: 'City Bell', rating: 0, ratingCount: 0, status: 'Disponible', level: 'Picado Medio ⚽' },
+            { uid: 'dummy_6', name: 'El Tanque', position: 'Delantero', zone: 'Los Hornos', rating: 4.2, ratingCount: 12, status: 'Disponible', level: 'Picado Medio ⚽' },
+            { uid: 'dummy_7', name: 'La Muralla', position: 'Arquero', zone: 'Berisso', rating: 4.8, ratingCount: 20, status: 'Disponible', level: 'A Morir (Competitivo) 🏆' }
         ];
+
+        // Componente auxiliar para botones del header móvil
+        const MobileHeaderButton = ({ icon: Icon, label, onClick, highlight }) => (
+            <button 
+                onClick={onClick} 
+                className={`flex flex-col items-center justify-center py-2 rounded-lg transition-all active:scale-95 border ${
+                    highlight 
+                    ? 'bg-[#00ff55] text-black border-[#00cc44] shadow-[0_0_10px_rgba(0,255,85,0.3)]' 
+                    : 'bg-[#1a1a1a] text-gray-300 border-gray-800 hover:border-gray-600 hover:text-white'
+                }`}
+            >
+                <Icon size={18} className={highlight ? "mb-1 text-black" : "mb-1 text-[#00ff55]"} />
+                <span className="text-[9px] font-black uppercase tracking-wider">{label}</span>
+            </button>
+        );
 
         const App = () => {
             const [view, setView] = useState('landing');
@@ -212,7 +222,7 @@
             const [showRatingModal, setShowRatingModal] = useState(false);
             const [ratingMatch, setRatingMatch] = useState(null);
             const [ratingTargetPlayer, setRatingTargetPlayer] = useState(null);
-            const [ratingStep, setRatingStep] = useState('list'); // 'list' o 'form'
+            const [ratingStep, setRatingStep] = useState('list'); 
             const [ratings, setRatings] = useState({ game: 3, punctuality: 3, fairplay: 3, communication: 3, social: 3 });
 
             const [confirmation, setConfirmation] = useState({ show: false, text: '', action: null });
@@ -221,11 +231,8 @@
             const [targetPlayer, setTargetPlayer] = useState(null);
             const [inviteData, setInviteData] = useState({ place: '', time: '' });
             const [newTeamName, setNewTeamName] = useState('');
-            // Added level, stake, isChallenge
             const [publishData, setPublishData] = useState({ type: 'player', format: 'F5', zone: 'La Plata (Casco Urbano)', place: '', time: '', date: '', level: 'Picado Medio ⚽', isChallenge: false, stake: '' });
             const [neededPositions, setNeededPositions] = useState(['Cualquiera']);
-            
-            // Player Postulation Form
             const [playerPostulationLevel, setPlayerPostulationLevel] = useState('Picado Medio ⚽');
 
             const [searchQuery, setSearchQuery] = useState(''); 
@@ -233,8 +240,6 @@
             const [teamSearchQuery, setTeamSearchQuery] = useState(''); 
             const [teamSearchResults, setTeamSearchResults] = useState([]); 
             const [isEditingPosition, setIsEditingPosition] = useState(false);
-            
-            // Edición de Apodo
             const [isEditingNickname, setIsEditingNickname] = useState(false);
             const [nicknameInput, setNicknameInput] = useState('');
 
@@ -290,6 +295,24 @@
             }, []);
 
             useEffect(() => {
+                if (user && isAdmin) {
+                    const cleanOldData = async () => {
+                        const sevenDaysAgoDate = new Date(Date.now() - 86400000 * 7);
+                        const sevenDaysAgoString = sevenDaysAgoDate.toISOString().split('T')[0];
+
+                        const qOldMatches = query(collection(db, 'artifacts', appId, 'public', 'data', 'matches'), where('date', '<', sevenDaysAgoString));
+                        const oldMatchesSnap = await getDocs(qOldMatches);
+                        oldMatchesSnap.forEach(d => deleteDoc(d.ref));
+
+                        const qOldPlayers = query(collection(db, 'artifacts', appId, 'public', 'data', 'players'), where('createdAt', '<', Timestamp.fromDate(sevenDaysAgoDate)));
+                        const oldPlayersSnap = await getDocs(qOldPlayers);
+                        oldPlayersSnap.forEach(d => deleteDoc(d.ref));
+                    };
+                    cleanOldData();
+                }
+            }, [user]);
+
+            useEffect(() => {
                 if (!user || !db) return;
                 try {
                     const qTeam = collection(db, 'artifacts', appId, 'public', 'data', 'teams');
@@ -310,7 +333,12 @@
             const subscribeToData = () => {
                 if (!db) return;
                 try {
-                    const qM = collection(db, 'artifacts', appId, 'public', 'data', 'matches');
+                    const sevenDaysAgoString = new Date(Date.now() - 86400000 * 7).toISOString().split('T')[0];
+                    const qM = query(
+                        collection(db, 'artifacts', appId, 'public', 'data', 'matches'),
+                        where('date', '>=', sevenDaysAgoString)
+                    );
+
                     onSnapshot(qM, (s) => {
                         const data = s.docs.map(d => ({id: d.id, ...d.data()}));
                         if (data.length === 0) {
@@ -325,7 +353,12 @@
                         setLoading(false);
                     });
 
-                    const qP = collection(db, 'artifacts', appId, 'public', 'data', 'players');
+                    const sevenDaysAgoDate = new Date(Date.now() - 86400000 * 7);
+                    const qP = query(
+                        collection(db, 'artifacts', appId, 'public', 'data', 'players'),
+                        where('createdAt', '>', Timestamp.fromDate(sevenDaysAgoDate))
+                    );
+
                     onSnapshot(qP, (s) => {
                         const data = s.docs.map(d => ({id: d.id, ...d.data()}));
                         if (data.length === 0) {
@@ -363,7 +396,6 @@
                 }
             };
 
-            // --- NICKNAME LOGIC ---
             const handleStartEditingNickname = () => {
                 setNicknameInput(userProfile?.nickname || user.displayName || '');
                 setIsEditingNickname(true);
@@ -374,7 +406,6 @@
                 if (!newNickname) return alert("El apodo no puede estar vacío.");
                 if (newNickname.length < 3) return alert("El apodo debe tener al menos 3 letras.");
                 
-                // Verificación de duplicados
                 const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), where('nickname', '==', newNickname));
                 const snap = await getDocs(q);
                 const isTaken = snap.docs.some(d => d.id !== user.uid);
@@ -396,7 +427,6 @@
                 } catch(e) { alert("Error al guardar: " + e.message); }
             };
 
-            // --- RATING LOGIC ---
             const openRatingModal = (match) => {
                 setRatingMatch(match);
                 setRatingStep('list');
@@ -443,7 +473,6 @@
                 </div>
             );
 
-            // --- HANDLERS ---
             const handleGoogleLogin = async () => {
                 try { await signInWithPopup(auth, new GoogleAuthProvider()); setView('app'); }
                 catch (e) { alert("Error al iniciar sesión: " + e.message); }
@@ -511,10 +540,10 @@
                 try {
                     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'players'), {
                         uid: user.uid, 
-                        name: userProfile?.nickname || user.displayName, // Usar apodo
+                        name: userProfile?.nickname || user.displayName, 
                         position: userProfile?.position || 'Polifuncional', 
                         zone: 'La Plata',
-                        level: playerPostulationLevel, // Nivel seleccionado
+                        level: playerPostulationLevel, 
                         rating: 0, ratingCount: 0, status: 'Disponible', createdAt: serverTimestamp()
                     });
                     alert("¡Te has postulado correctamente!");
@@ -596,35 +625,20 @@
 
             const handleShareApp = () => {
                 const text = "¡Sumate a El Capitán! La app para organizar partidos y encontrar equipo en La Plata. Descargala acá:";
+                // --- IMPORTANTE: CAMBIAR ESTO CUANDO TENGAS EL LINK DE DRIVE ---
                 const url = window.location.href; 
+                // const url = "https://drive.google.com/file/d/TU-LINK-DE-DRIVE/view";
                 window.open(`https://wa.me/?text=${encodeURIComponent(text + " " + url)}`, '_blank');
             };
 
             const sendSystemInvite = async (targetUser) => {
                 if (!user || !myTeam) return;
-                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'invitations'), { 
-                    type: 'recruit', 
-                    fromUserId: user.uid, 
-                    fromName: userProfile?.nickname || user.displayName, 
-                    teamId: myTeam.id, 
-                    teamName: myTeam.name, 
-                    toUserId: targetUser.uid, 
-                    toPlayerName: targetUser.nickname || targetUser.name, 
-                    place: "Fichaje", time: "General", status: 'pending', createdAt: serverTimestamp() 
-                });
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'invitations'), { type: 'recruit', fromUserId: user.uid, fromName: userProfile?.nickname || user.displayName, teamId: myTeam.id, teamName: myTeam.name, toUserId: targetUser.uid, toPlayerName: targetUser.nickname || targetUser.name, place: "Fichaje", time: "General", status: 'pending', createdAt: serverTimestamp() });
                 alert("Solicitud de fichaje enviada internamente.");
             };
             const sendJoinRequest = async (targetTeam) => {
                 if (!user) return;
-                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'invitations'), { 
-                    type: 'join_request', 
-                    fromUserId: user.uid, 
-                    fromName: userProfile?.nickname || user.displayName, 
-                    teamId: targetTeam.id, 
-                    teamName: targetTeam.name, 
-                    toUserId: targetTeam.captainId, 
-                    status: 'pending', createdAt: serverTimestamp() 
-                });
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'invitations'), { type: 'join_request', fromUserId: user.uid, fromName: userProfile?.nickname || user.displayName, teamId: targetTeam.id, teamName: targetTeam.name, toUserId: targetTeam.captainId, status: 'pending', createdAt: serverTimestamp() });
                 alert("Solicitud enviada"); setShowTeamSearchModal(false);
             };
             const openInviteModal = (player) => {
@@ -679,21 +693,6 @@
             const StarRatingDisplay = ({ rating }) => (<div className="flex gap-0.5">{[...Array(5)].map((_, i) => (<Star key={i} size={10} className={i < Math.round(rating) ? 'fill-yellow-400 text-yellow-600' : 'fill-gray-600 text-gray-700'} />))}</div>);
             const ZoneSelectOptions = () => (<>{Object.entries(ZONES_BY_AREA).map(([region, zones]) => (<optgroup key={region} label={region} className="bg-gray-800 text-gray-300 font-bold">{zones.map(z => <option key={z} value={z} className="bg-gray-700 font-normal">{z}</option>)}</optgroup>))}</>);
 
-            // Componente auxiliar para botones del header móvil
-            const MobileHeaderButton = ({ icon: Icon, label, onClick, highlight }) => (
-                <button 
-                    onClick={onClick} 
-                    className={`flex flex-col items-center justify-center py-2 rounded-lg transition-all active:scale-95 border ${
-                        highlight 
-                        ? 'bg-[#00ff55] text-black border-[#00cc44] shadow-[0_0_10px_rgba(0,255,85,0.3)]' 
-                        : 'bg-[#1a1a1a] text-gray-300 border-gray-800 hover:border-gray-600 hover:text-white'
-                    }`}
-                >
-                    <Icon size={18} className={highlight ? "mb-1 text-black" : "mb-1 text-[#00ff55]"} />
-                    <span className="text-[9px] font-black uppercase tracking-wider">{label}</span>
-                </button>
-            );
-
             // --- VISTAS ---
             if (view === 'landing') {
                 return (
@@ -721,7 +720,13 @@
                 );
             }
 
-            const filteredMatches = matches.filter(m => (formatFilter === 'Todos' || m.format === formatFilter) && (zoneFilter === 'Todas' || m.zone === zoneFilter));
+            // CORRECCIÓN: Definición de yesterdayString antes del filtro
+            const yesterdayString = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+            const filteredMatches = matches.filter(m => 
+                (formatFilter === 'Todos' || m.format === formatFilter) && 
+                (zoneFilter === 'Todas' || m.zone === zoneFilter) &&
+                (m.date >= yesterdayString) 
+            );
 
             return (
                 <div className="flex-1 flex flex-col">
@@ -892,8 +897,6 @@
                                     <div className="bg-[#1a1a1a] rounded-lg border border-gray-800 overflow-hidden">
                                         <div className="bg-gray-800 px-4 py-3 border-b border-gray-700 font-bold text-white flex gap-2 items-center"><ClipboardList size={16} className="text-[#00ff55]"/> Mis Publicaciones</div>
                                         {myOrganizedMatches.map(m => {
-                                            // Check si el partido ya pasó (más de 24hs o fecha anterior)
-                                            // Simplificación: si la fecha del partido es menor a hoy, permite calificar
                                             const matchDate = new Date(m.date + 'T' + m.time);
                                             const now = new Date();
                                             const canRate = now > matchDate;
@@ -1112,7 +1115,18 @@
                                         </div>
                                     )}
 
-                                    <input type="date" className="w-full bg-black/50 p-2 rounded text-sm border border-gray-700" value={publishData.date} onChange={e=>setPublishData({...publishData, date:e.target.value})} required/>
+                                    <div className="space-y-1">
+                                        <label className="text-gray-400 text-xs font-bold ml-1">Fecha (Máx: 1 Semana)</label>
+                                        <input 
+                                            type="date" 
+                                            className="w-full bg-black/50 p-2 rounded text-sm border border-gray-700 text-white" 
+                                            value={publishData.date} 
+                                            min={today}
+                                            max={maxPublishDate}
+                                            onChange={e=>setPublishData({...publishData, date:e.target.value})} 
+                                            required
+                                        />
+                                    </div>
                                     <input placeholder="Cancha" className="w-full bg-black/50 p-2 rounded text-sm border border-gray-700" value={publishData.place} onChange={e=>setPublishData({...publishData, place:e.target.value})} required/>
                                     <input type="time" className="w-full bg-black/50 p-2 rounded text-sm border border-gray-700" value={publishData.time} onChange={e=>setPublishData({...publishData, time:e.target.value})} required/>
                                     
@@ -1239,7 +1253,7 @@
                     )}
 
                     {view !== 'landing' && (
-                        <div className="fixed bottom-0 left-0 w-full bg-[#111] border-t border-gray-800 flex justify-around items-center h-16 z-50">
+                        <div className="fixed bottom-0 left-0 w-full bg-[#111] border-t-2 border-[#00ff55] flex justify-around items-center h-16 z-[999] shadow-2xl">
                             <button onClick={() => setView('app')} className={`flex flex-col items-center gap-1 ${view === 'app' ? 'text-[#00ff55]' : 'text-gray-500'}`}><Home size={20}/> <span className="text-[10px]">Inicio</span></button>
                             <button onClick={handleClickHeaderButton} className="flex flex-col items-center gap-1 text-gray-500 hover:text-white"><PlusCircle size={20}/> <span className="text-[10px]">{!myTeam ? "Crear" : "Publicar"}</span></button>
                             <button onClick={() => user ? setView('team') : setShowLoginModal(true)} className={`flex flex-col items-center gap-1 ${view === 'team' ? 'text-[#00ff55]' : 'text-gray-500'}`}><Shield size={20}/> <span className="text-[10px]">Mi Equipo</span></button>
