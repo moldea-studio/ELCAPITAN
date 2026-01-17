@@ -45,7 +45,6 @@
 
     <!-- Estilos base -->
     <style>
-        /* Padding inferior extra grande para asegurar que el contenido no quede tapado por el footer */
         body { background-color: #111827; color: #e5e7eb; font-family: sans-serif; padding-bottom: 100px; }
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #1a1a1a; }
@@ -53,13 +52,11 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         #root { min-height: 100vh; display: flex; flex-direction: column; }
-        #error-display { display: none; padding: 20px; color: #ff6b6b; background: #2d1b1b; text-align: center; }
-        .modal-animate { animation: fadeIn 0.2s ease-out forwards; }
-        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
-    <div id="error-display"></div>
     <div id="root">
         <div class="flex-1 flex items-center justify-center text-[#00ff55] animate-pulse">
             <svg class="w-10 h-10 animate-spin mr-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -74,56 +71,37 @@
         import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
         import { 
             Users, MapPin, Calendar, Shield, Search, PlusCircle, AlertCircle, 
-            ChevronRight, ChevronDown, ChevronUp, Swords, Star, Menu, X, Filter, 
-            Link as LinkIcon, User, LogOut, Mail, Lock, Trash2, Ban, Trophy, 
-            Activity, ArrowLeft, HelpCircle, FileText, Lock as LockIcon, Bell, 
-            CheckCircle, XCircle, Send, Crown, UserPlus, Share2, Edit2, Save, MinusCircle,
-            Home, Zap, ClipboardList, AlertTriangle, Download, UserCheck, UserX, Clock, MessageCircle, Beer, Flame, Banknote, Image as ImageIcon, Camera
+            ChevronRight, Swords, Star, Menu, X, Filter, User, LogOut, Bell, 
+            Trophy, Trash2, Download, Home, Share2, Crown, UserX, UserCheck, MinusCircle
         } from 'https://esm.sh/lucide-react@0.294.0';
         
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import { initializeAppCheck, ReCaptchaV3Provider } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app-check.js';
+        // NOTA: Desactivamos AppCheck temporalmente para evitar errores de reCAPTCHA en desarrollo
+        // import { initializeAppCheck, ReCaptchaV3Provider } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app-check.js';
         import { 
-            getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged,
-            signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile,
-            signInAnonymously, signInWithCustomToken
+            getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, signInAnonymously 
         } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
         import { 
            getFirestore, collection, query, onSnapshot, doc, updateDoc, increment, 
            arrayUnion, arrayRemove, addDoc, serverTimestamp, deleteDoc, where, 
-           orderBy, getDoc, setDoc, getDocs, Timestamp
+           getDoc, setDoc, getDocs, Timestamp 
         } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
         import { getStorage, ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js';
 
-        // --- DEFINICIONES GLOBALES ---
+        // --- CONSTANTES ---
         const appId = 'el-capitan-web';
         const ADMIN_EMAILS = ["worlddigital2011@gmail.com", "admin@elenganche.com", "eyamilgimenez98@gmail.com"];
-        
-        const LA_PLATA_ZONES = [
-            "Todas", "La Plata (Casco Urbano)", "City Bell", "Villa Elisa", 
-            "Manuel B. Gonnet", "Arturo Seguí", "Ringuelet", "Tolosa", 
-            "Los Hornos", "San Carlos", "Villa Elvira", "Altos de San Lorenzo", 
-            "Villa Castells", "Joaquín Gorina", "José Hernández", "Lisandro Olmos", 
-            "Melchor Romero", "Abasto", "Etcheverry", "El Peligro", "Sicardi / Villa Garibaldi"
-        ];
-        
         const ZONES_BY_AREA = {
             "Casco Urbano": ["La Plata (Casco Urbano)"],
-            "Zona Norte": ["Arturo Seguí", "Villa Elisa", "City Bell", "Manuel B. Gonnet", "Ringuelet", "Tolosa", "Villa Castells", "Joaquín Gorina", "José Hernández"],
-            "Zona Oeste": ["San Carlos", "Los Hornos", "Lisandro Olmos", "Melchor Romero", "Abasto", "Etcheverry", "El Peligro"],
-            "Zona Sur": ["Villa Elvira", "Altos de San Lorenzo", "Sicardi / Villa Garibaldi"],
-            "Zona Este": ["Ensenada", "Berisso"]
+            "Zona Norte": ["Arturo Seguí", "Villa Elisa", "City Bell", "Manuel B. Gonnet", "Ringuelet", "Tolosa"],
+            "Zona Oeste": ["San Carlos", "Los Hornos", "Lisandro Olmos", "Melchor Romero", "Abasto"],
+            "Zona Sur": ["Villa Elvira", "Altos de San Lorenzo", "Sicardi / Villa Garibaldi"]
         };
-
         const MATCH_LEVELS = ["Tranqui / Joda 🍻", "Picado Medio ⚽", "A Morir (Competitivo) 🏆"];
 
-        const today = new Date().toISOString().split('T')[0];
-        const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
-        const yesterdayString = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-        const sevenDaysAgoString = new Date(Date.now() - 86400000 * 7).toISOString().split('T')[0];
-        const maxPublishDate = new Date(Date.now() + 86400000 * 7).toISOString().split('T')[0];
+        // --- COMPONENTES UI REUTILIZABLES (EL SECRETO DE LAS BUENAS PRÁCTICAS) ---
 
-        // --- COMPONENTES AUXILIARES ---
+        // 1. Botón del Header Móvil
         const MobileHeaderButton = ({ icon: Icon, label, onClick, highlight }) => (
             <button 
                 onClick={onClick} 
@@ -138,976 +116,476 @@
             </button>
         );
 
-        const ZoneSelectOptions = () => (<>{Object.entries(ZONES_BY_AREA).map(([region, zones]) => (<optgroup key={region} label={region} className="bg-gray-800 text-gray-300 font-bold">{zones.map(z => <option key={z} value={z} className="bg-gray-700 font-normal">{z}</option>)}</optgroup>))}</>);
+        // 2. Tarjeta de Partido (MatchCard)
+        const MatchCard = ({ match, user, isAdmin, onDelete, onJoin }) => {
+            const isSigned = match.playersSigned?.includes(user?.uid);
+            const isCreator = user && match.createdBy === user.uid;
+            const canDelete = isAdmin || isCreator;
 
-        // --- DATOS FICTICIOS ---
-        const INITIAL_MATCHES = [
-            { date: yesterdayString, time: '20:00', place: 'Predio El Rincón', zone: 'La Plata (Casco Urbano)', format: 'F5', type: 'player', missing: 0, position: 'Arquero', teamName: 'Los Rotos FC', urgent: false, playersSigned: ['dummy_1', 'dummy_2'], level: 'Picado Medio ⚽' },
-            { date: today, time: '21:00', place: 'Club Atl. Villa Elisa', zone: 'Villa Elisa', format: 'F7', type: 'rival', isChallenge: true, stake: 'La cancha ($30.000)', missing: 0, position: 'Equipo Completo', teamName: 'Defensores VE', urgent: true, level: 'A Morir (Competitivo) 🏆' },
-            { date: tomorrow, time: '19:00', place: 'La Plaza', zone: 'City Bell', format: 'F5', type: 'player', missing: 2, position: 'Defensores', teamName: 'Inter CB', urgent: false, level: 'Tranqui / Joda 🍻' },
-        ];
-        const INITIAL_PLAYERS = [
-            { uid: 'dummy_1', name: 'Lucho M.', position: 'Arquero', zone: 'Villa Elisa', rating: 4.5, ratingCount: 10, status: 'Disponible', level: 'A Morir (Competitivo) 🏆' },
-            { uid: 'dummy_2', name: 'El Distinto', position: 'Medio', zone: 'La Plata', rating: 5.0, ratingCount: 3, status: 'Disponible', level: 'Picado Medio ⚽' },
-        ];
+            return (
+                <div className="p-3 border-b border-gray-300 flex justify-between items-center bg-white hover:bg-gray-50 animate-fade-in">
+                    <div>
+                        <div className="font-bold text-sm flex items-center gap-2">
+                            {match.teamName} <span className="bg-black text-[#00ff55] text-[9px] px-1 rounded">{match.format}</span>
+                            {match.isChallenge && <span className="text-[9px] bg-yellow-400 text-black px-1 rounded font-black flex gap-1"><Trophy size={8}/> DESAFÍO</span>}
+                        </div>
+                        <div className="text-xs text-gray-600 flex items-center gap-1 mt-1"><MapPin size={10}/> {match.place} | {match.zone}</div>
+                        <div className="flex items-center gap-2 mt-1">
+                            <div className="text-xs font-mono font-bold text-green-800">{match.date} - {match.time}</div>
+                            <span className="text-[9px] bg-gray-200 px-1 rounded text-gray-600">{match.level}</span>
+                        </div>
+                        {match.isChallenge && <div className="text-[10px] text-yellow-700 font-bold mt-1">🔥 {match.stake}</div>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {canDelete && (
+                            <button onClick={() => onDelete(match.id)} className="text-red-500 bg-red-100 p-1.5 rounded hover:bg-red-200 transition-colors">
+                                <Trash2 size={14}/>
+                            </button>
+                        )}
+                        <button 
+                            onClick={() => onJoin(match)} 
+                            className={`px-3 py-1.5 rounded text-xs font-bold border-b-2 transition-all active:scale-95 ${
+                                isSigned 
+                                ? 'bg-red-600 text-white border-red-800 hover:bg-red-700' 
+                                : 'bg-[#008f45] text-white border-[#006400] hover:bg-[#007a3b]'
+                            }`}
+                        >
+                            {isSigned ? 'Salir' : 'Anotarme'}
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        // 3. Tarjeta de Jugador (PlayerCard)
+        const PlayerCard = ({ player, user, isAdmin, onDelete, onInvite }) => (
+            <div className="bg-white p-2 rounded shadow-sm flex justify-between items-center border border-gray-200">
+                <div>
+                    <div className="font-bold text-xs uppercase flex items-center gap-1">
+                        {player.name} <span className="text-[9px] bg-yellow-100 text-yellow-800 px-1 rounded">★ {player.rating ? player.rating.toFixed(1) : '-'}</span>
+                    </div>
+                    <div className="text-[10px] text-gray-500">{player.position} | {player.level}</div>
+                </div>
+                <div className="flex gap-2">
+                    {onInvite && (
+                        <button onClick={() => onInvite(player)} className="text-[#00ff55] text-[10px] font-bold border border-[#00ff55] px-2 py-1 rounded hover:bg-[#00ff55] hover:text-black transition-colors">
+                            FICHAR
+                        </button>
+                    )}
+                    {(isAdmin || (user && player.uid === user.uid)) && (
+                        <button onClick={() => onDelete(player.id)} className="text-red-500 text-[10px] font-bold border border-red-200 px-2 py-1 rounded hover:bg-red-50 transition-colors">
+                            BAJARME
+                        </button>
+                    )}
+                </div>
+            </div>
+        );
 
         // --- APP PRINCIPAL ---
         const App = () => {
-            // ESTADO INICIAL SIEMPRE 'landing'
+            // ESTADOS
             const [view, setView] = useState('landing');
             const [user, setUser] = useState(null);
             const [userProfile, setUserProfile] = useState(null);
             
-            // Firebase Config
-            const getFirebaseConfig = () => ({
-                apiKey: "AIzaSyC8att6xIu--GeDn7uY6gHkIrwUU1UhwpM",
-                authDomain: "el-enganche.firebaseapp.com",
-                projectId: "el-enganche",
-                storageBucket: "el-enganche.firebasestorage.app",
-                messagingSenderId: "733812663281",
-                appId: "1:733812663281:web:1e0ba9ca08a331930eda50"
-            });
-
-            // Init Firebase
+            // Firebase Init
             const [db, setDb] = useState(null);
             const [auth, setAuth] = useState(null);
             const [storage, setStorage] = useState(null);
 
-            useEffect(() => {
-                 try {
-            const app = initializeApp(getFirebaseConfig());
-        
-            // 🔒 App Check con reCAPTCHA
-            const appCheck = initializeAppCheck(app, {
-                provider: new ReCaptchaV3Provider('6LdxFE4sAAAAAIcAqm8pq_mfpw1WRzVRJtHiOkP4'),
-                isTokenAutoRefreshEnabled: true
-        });
-        
-        setAuth(getAuth(app));
-        setDb(getFirestore(app));
-        setStorage(getStorage(app));
-    } catch(e) { console.error(e); }
-}, []);
-
-            // Data States
+            // Data
             const [matches, setMatches] = useState([]);
             const [players, setPlayers] = useState([]);
             const [invitations, setInvitations] = useState([]);
             const [myTeam, setMyTeam] = useState(null);
             const [loading, setLoading] = useState(true);
-            const [submitting, setSubmitting] = useState(false);
-            
-            // UI States
-            const [showLoginModal, setShowLoginModal] = useState(false);
-            const [showInviteModal, setShowInviteModal] = useState(false);
-            const [showCreateTeamModal, setShowCreateTeamModal] = useState(false);
-            const [showPublishModal, setShowPublishModal] = useState(false);
-            const [showScoutModal, setShowScoutModal] = useState(false);
-            const [showTeamSearchModal, setShowTeamSearchModal] = useState(false);
-            const [showInstallModal, setShowInstallModal] = useState(false);
-            const [showMapModal, setShowMapModal] = useState(false);
-            const [showRatingModal, setShowRatingModal] = useState(false);
-            const [showNotifications, setShowNotifications] = useState(false);
-            
-            // Filter States
-            const [formatFilter, setFormatFilter] = useState('Todos');
-            const [zoneFilter, setZoneFilter] = useState('Todas');
-            
-            // Form States
-            const [inviteData, setInviteData] = useState({ place: '', time: '' });
-            const [targetPlayer, setTargetPlayer] = useState(null);
-            const [newTeamName, setNewTeamName] = useState('');
-            const [teamLogoFile, setTeamLogoFile] = useState(null);
-            const [publishData, setPublishData] = useState({ type: 'player', format: 'F5', zone: 'La Plata (Casco Urbano)', place: '', time: '', date: '', level: 'Picado Medio ⚽', isChallenge: false, stake: '' });
-            const [neededPositions, setNeededPositions] = useState(['Cualquiera']);
-            const [playerPostulationLevel, setPlayerPostulationLevel] = useState('Picado Medio ⚽');
-            
-            // Rating & Edit States
-            const [ratingStep, setRatingStep] = useState('list');
-            const [ratingMatch, setRatingMatch] = useState(null);
-            const [ratingTargetPlayer, setRatingTargetPlayer] = useState(null);
-            const [ratings, setRatings] = useState({ game: 3, punctuality: 3, fairplay: 3, communication: 3, social: 3 });
-            const [isEditingPosition, setIsEditingPosition] = useState(false);
-            const [isEditingNickname, setIsEditingNickname] = useState(false);
-            const [nicknameInput, setNicknameInput] = useState('');
-            
-            // Search States
-            const [searchQuery, setSearchQuery] = useState('');
-            const [searchResults, setSearchResults] = useState([]);
-            const [teamSearchQuery, setTeamSearchQuery] = useState('');
-            const [teamSearchResults, setTeamSearchResults] = useState([]);
-            
+
+            // Modales
+            const [activeModal, setActiveModal] = useState(null); // 'login', 'createTeam', 'publish', 'scout', 'invite', 'map'
             const [confirmation, setConfirmation] = useState({ show: false, text: '', action: null });
-            const [deferredPrompt, setDeferredPrompt] = useState(null);
-
-            // Computed
-            const isAdmin = user && ADMIN_EMAILS.includes(user.email);
-            const myOrganizedMatches = user ? matches.filter(m => m.createdBy === user.uid) : [];
-            const userRating = userProfile?.rating || 0;
-            const userRatingCount = userProfile?.ratingCount || 0;
-            const pendingInvitations = invitations.filter(inv => inv.status === 'pending');
-            const isCaptain = myTeam && myTeam.captainId === user?.uid;
             
-            const myPlayerProfile = players.find(p => user && p.uid === user.uid);
+            // Filtros y Formularios
+            const [filters, setFilters] = useState({ format: 'Todos', zone: 'Todas' });
+            const [forms, setForms] = useState({
+                newTeamName: '',
+                invitePlace: '', inviteTime: '',
+                publish: { type: 'player', format: 'F5', zone: 'La Plata (Casco Urbano)', place: '', time: '', date: '', level: 'Picado Medio ⚽', isChallenge: false, stake: '' },
+                neededPositions: ['Cualquiera'],
+                playerLevel: 'Picado Medio ⚽'
+            });
+            const [targetData, setTargetData] = useState(null); // Para guardar a quien invitamos o qué editamos
 
-            // Funciones Faltantes Agregadas para Estabilidad
-            const handleAddSlot = () => setNeededPositions([...neededPositions, 'Cualquiera']);
-            const handleRemoveSlot = (index) => setNeededPositions(neededPositions.filter((_, i) => i !== index));
-            const handleSlotChange = (index, value) => {
-                const newSlots = [...neededPositions];
-                newSlots[index] = value;
-                setNeededPositions(newSlots);
-            };
+            const isAdmin = user && ADMIN_EMAILS.includes(user.email);
+            const pendingInvitations = invitations.filter(inv => inv.status === 'pending');
 
-            // --- AUTH & DATA SUBSCRIPTION ---
+            // --- FIREBASE SETUP ---
             useEffect(() => {
-                if(!auth) return;
-                onAuthStateChanged(auth, async (u) => {
+                const initFirebase = async () => {
+                    try {
+                        const app = initializeApp({
+                            apiKey: "AIzaSyC8att6xIu--GeDn7uY6gHkIrwUU1UhwpM",
+                            authDomain: "el-enganche.firebaseapp.com",
+                            projectId: "el-enganche",
+                            storageBucket: "el-enganche.firebasestorage.app",
+                            messagingSenderId: "733812663281",
+                            appId: "1:733812663281:web:1e0ba9ca08a331930eda50"
+                        });
+                        
+                        // DESACTIVADO TEMPORALMENTE
+                        // initializeAppCheck(app, {
+                        //     provider: new ReCaptchaV3Provider('6LdxFE4sAAAAAIcAqm8pq_mfpw1WRzVRJtHiOkP4'),
+                        //     isTokenAutoRefreshEnabled: true
+                        // });
+
+                        setAuth(getAuth(app));
+                        setDb(getFirestore(app));
+                        setStorage(getStorage(app));
+                    } catch(e) { console.error("Error init firebase:", e); }
+                };
+                initFirebase();
+            }, []);
+
+            // --- AUTH & LISTENERS ---
+            useEffect(() => {
+                if(!auth || !db) return;
+                const unsubAuth = onAuthStateChanged(auth, async (u) => {
                     if (u) {
                         setUser(u.isAnonymous ? null : u);
-                        if (!u.isAnonymous && db) {
-                            const userRef = doc(db, 'artifacts', 'el-capitan-web', 'public', 'data', 'users', u.uid);
+                        if (!u.isAnonymous) {
+                            const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', u.uid);
                             const snap = await getDoc(userRef);
-                            if (!snap.exists()) {
-                                await setDoc(userRef, { uid: u.uid, name: u.displayName, nickname: u.displayName, email: u.email, position: 'Polifuncional', searchName: u.displayName ? u.displayName.toLowerCase() : '', createdAt: serverTimestamp() });
-                                setUserProfile({ position: 'Polifuncional', nickname: u.displayName });
-                            } else {
-                                setUserProfile(snap.data());
+                            if (snap.exists()) setUserProfile(snap.data());
+                            else {
+                                const newData = { uid: u.uid, name: u.displayName, nickname: u.displayName, email: u.email, position: 'Polifuncional', searchName: u.displayName?.toLowerCase(), createdAt: serverTimestamp() };
+                                await setDoc(userRef, newData);
+                                setUserProfile(newData);
                             }
                         }
                     } else {
-                        try { await signInAnonymously(auth); } catch(e) { console.log("Auth anon failed", e); }
+                        signInAnonymously(auth).catch(console.error);
                     }
                 });
+
+                // Listeners de Datos
+                const todayStr = new Date().toISOString().split('T')[0];
+                const qM = query(collection(db, 'artifacts', appId, 'public', 'data', 'matches'), where('date', '>=', new Date(Date.now() - 86400000).toISOString().split('T')[0]));
+                const unsubM = onSnapshot(qM, (s) => {
+                    setMatches(s.docs.map(d => ({id: d.id, ...d.data()})).sort((a,b) => new Date(a.date+'T'+a.time) - new Date(b.date+'T'+b.time)));
+                    setLoading(false);
+                });
+                
+                const qP = query(collection(db, 'artifacts', appId, 'public', 'data', 'players'), where('createdAt', '>', Timestamp.fromDate(new Date(Date.now() - 86400000 * 7))));
+                const unsubP = onSnapshot(qP, (s) => setPlayers(s.docs.map(d => ({id: d.id, ...d.data()}))));
+
+                return () => { unsubAuth(); unsubM(); unsubP(); }
             }, [auth, db]);
 
+            // Listener de Equipo e Invitaciones (Solo si hay usuario)
             useEffect(() => {
                 if(!user || !db) return;
-                const unsubTeam = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'teams'), (s) => {
-                    const found = s.docs.map(d => ({id: d.id, ...d.data()})).find(t => t.captainId === user.uid || t.members?.some(m => m.uid === user.uid));
-                    setMyTeam(found || null);
+                const unsubT = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'teams'), (s) => {
+                    const myTeamFound = s.docs.map(d => ({id: d.id, ...d.data()})).find(t => t.captainId === user.uid || t.members?.some(m => m.uid === user.uid));
+                    setMyTeam(myTeamFound || null);
                 });
-                const unsubInv = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'invitations'), (s) => {
-                    const all = s.docs.map(d => ({id: d.id, ...d.data()}));
-                    setInvitations(all.filter(i => i.toUserId === user.uid).sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0)));
+                const unsubI = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'invitations'), (s) => {
+                    setInvitations(s.docs.map(d => ({id: d.id, ...d.data()})).filter(i => i.toUserId === user.uid));
                 });
-                return () => { unsubTeam(); unsubInv(); }
+                return () => { unsubT(); unsubI(); }
             }, [user, db]);
 
-            useEffect(() => {
-                if(!db) return;
-                const qM = query(collection(db, 'artifacts', appId, 'public', 'data', 'matches'), where('date', '>=', sevenDaysAgoString));
-                const unsubM = onSnapshot(qM, (s) => {
-                    const d = s.docs.map(doc => ({id: doc.id, ...doc.data()}));
-                    if(d.length === 0) seedMatches();
-                    else setMatches(d.sort((a,b) => new Date(b.date+'T'+b.time) - new Date(a.date+'T'+a.time)));
-                    setLoading(false);
-                }, () => { setMatches(INITIAL_MATCHES); setLoading(false); });
+            // --- ACCIONES ---
+            const loginGoogle = async () => { try { await signInWithPopup(auth, new GoogleAuthProvider()); setView('app'); setActiveModal(null); } catch(e) { alert(e.message); } };
+            const logout = async () => { await signOut(auth); setView('landing'); setUser(null); };
 
-                const qP = query(collection(db, 'artifacts', appId, 'public', 'data', 'players'), where('createdAt', '>', Timestamp.fromDate(new Date(Date.now() - 86400000 * 7))));
-                const unsubP = onSnapshot(qP, (s) => {
-                    const d = s.docs.map(doc => ({id: doc.id, ...doc.data()}));
-                    if(d.length === 0) seedPlayers();
-                    else setPlayers(d);
-                }, () => setPlayers(INITIAL_PLAYERS));
+            const askConfirm = (text, action) => setConfirmation({ show: true, text, action });
 
-                return () => { unsubM(); unsubP(); }
-            }, [db]);
-
-            // --- SEEDERS ---
-            const seedMatches = async () => {
-                if(!db) return;
-                const ref = collection(db, 'artifacts', appId, 'public', 'data', 'matches');
-                const snap = await getDocs(ref);
-                if(snap.size === 0) {
-                    for(const m of INITIAL_MATCHES) await addDoc(ref, {...m, createdBy: 'system', createdAt: serverTimestamp()});
-                }
-            };
-            const seedPlayers = async () => {
-                if(!db) return;
-                const ref = collection(db, 'artifacts', appId, 'public', 'data', 'players');
-                const snap = await getDocs(ref);
-                if(snap.size === 0) {
-                    for(const p of INITIAL_PLAYERS) await addDoc(ref, {...p, uid: 'dummy_'+Math.random(), createdAt: serverTimestamp()});
-                }
-            };
-
-            // --- HELPERS ---
-            const compressImage = async (file) => {
-                return new Promise((resolve) => {
-                    const reader = new FileReader();
-                    reader.readAsDataURL(file);
-                    reader.onload = (e) => {
-                        const img = new Image();
-                        img.src = e.target.result;
-                        img.onload = () => {
-                            const canvas = document.createElement('canvas');
-                            const MAX = 300;
-                            let w = img.width, h = img.height;
-                            if(w>h) { if(w>MAX) { h*=MAX/w; w=MAX; } } else { if(h>MAX) { w*=MAX/h; h=MAX; } }
-                            canvas.width = w; canvas.height = h;
-                            const ctx = canvas.getContext('2d');
-                            ctx.drawImage(img, 0, 0, w, h);
-                            canvas.toBlob(resolve, 'image/jpeg', 0.7);
-                        }
-                    }
-                });
-            };
-
-            const askConfirmation = (text, action) => setConfirmation({ show: true, text, action });
-
-            // --- ACTIONS ---
-            const handleGoogleLogin = async () => { try { await signInWithPopup(auth, new GoogleAuthProvider()); setView('app'); } catch(e) { alert(e.message); } };
-            const handleLogout = async () => { await signOut(auth); setView('landing'); };
-            const handleGuest = () => setView('app');
-            const handleShareApp = () => {
-                const text = "¡Sumate a El Capitán! Descargala acá:";
-                const url = window.location.href;
-                window.open(`https://wa.me/?text=${encodeURIComponent(text + " " + url)}`, '_blank');
-            };
-            
-            const handleClickHeaderButton = () => {
-                if (!user) return setShowLoginModal(true);
-                if (!myTeam) return setShowCreateTeamModal(true);
-                if (myTeam.captainId !== user.uid) return alert("Solo el capitán puede publicar.");
-                setShowPublishModal(true);
-            };
-
-            const handleInstallClick = async () => {
-                if (deferredPrompt) {
-                    deferredPrompt.prompt();
-                    const { outcome } = await deferredPrompt.userChoice;
-                    if (outcome === 'accepted') setDeferredPrompt(null);
-                } else { setShowInstallModal(true); }
-            };
-
-            // --- CRUD ACTIONS ---
+            // CRUD Partidos
+            const handleDeleteMatch = (id) => askConfirm("¿Borrar partido?", async () => await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'matches', id)));
             const handleJoinMatch = async (m) => {
-                if(!user) return setShowLoginModal(true);
-                const ref = doc(db, 'artifacts', 'el-capitan-web', 'public', 'data', 'matches', m.id);
+                if(!user) return setActiveModal('login');
+                const ref = doc(db, 'artifacts', appId, 'public', 'data', 'matches', m.id);
                 try {
                     if(m.playersSigned?.includes(user.uid)) await updateDoc(ref, { missing: increment(1), playersSigned: arrayRemove(user.uid) });
                     else if(m.missing > 0) await updateDoc(ref, { missing: increment(-1), playersSigned: arrayUnion(user.uid) });
                 } catch(e) { alert(e.message); }
             };
 
-            const handlePublishMatch = async (e) => {
+            const handlePublish = async (e) => {
                 e.preventDefault();
                 if(!user) return;
-                setSubmitting(true);
                 try {
-                    await addDoc(collection(db, 'artifacts', 'el-capitan-web', 'public', 'data', 'matches'), {
-                        ...publishData,
-                        missing: publishData.type==='rival'?0:neededPositions.length,
-                        position: publishData.type==='rival'?'Equipo Completo':neededPositions.join(', '),
+                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'matches'), {
+                        ...forms.publish,
+                        missing: forms.publish.type==='rival'?0:forms.neededPositions.length,
+                        position: forms.publish.type==='rival'?'Equipo Completo':forms.neededPositions.join(', '),
                         teamName: myTeam ? myTeam.name : (userProfile?.nickname || user.displayName) + " Team",
                         urgent: false, playersSigned: [], createdBy: user.uid, createdAt: serverTimestamp()
                     });
-                    setPublishData({ type: 'player', format: 'F5', zone: 'La Plata (Casco Urbano)', place: '', time: '', date: '', level: 'Picado Medio ⚽', isChallenge: false, stake: '' });
-                    setNeededPositions(['Cualquiera']);
-                    setShowPublishModal(false);
+                    setActiveModal(null);
                     alert("¡Publicado!");
-                } catch(e) { alert(e.message); } finally { setSubmitting(false); }
+                } catch(e) { alert(e.message); }
             };
 
-            const handleJoinAsPlayer = async () => {
-                if (!user) { setShowLoginModal(true); return; }
-                if (players.some(p => p.uid === user.uid)) return alert("Ya estás postulado como agente libre.");
-                setSubmitting(true);
+            // CRUD Jugadores
+            const handlePostulate = async () => {
+                if(!user) return setActiveModal('login');
+                if(players.some(p => p.uid === user.uid)) return alert("Ya estás postulado.");
                 try {
                     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'players'), {
-                        uid: user.uid, 
-                        name: userProfile?.nickname || user.displayName, 
-                        position: userProfile?.position || 'Polifuncional', 
-                        zone: 'La Plata',
-                        level: playerPostulationLevel, 
-                        rating: 0, ratingCount: 0, status: 'Disponible', createdAt: serverTimestamp()
+                        uid: user.uid, name: userProfile?.nickname || user.displayName, position: userProfile?.position || 'Polifuncional',
+                        zone: 'La Plata', level: forms.playerLevel, rating: 0, ratingCount: 0, status: 'Disponible', createdAt: serverTimestamp()
                     });
-                    alert("¡Te has postulado correctamente!");
-                } catch(err) { alert("Error: " + err.message); } finally { setSubmitting(false); }
+                } catch(e) { alert(e.message); }
             };
+            const handleDeletePlayer = (id) => askConfirm("¿Bajarme?", async () => await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'players', id)));
 
-            const handleUpdatePosition = async (newPos) => {
-                if(!user) return;
-                const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.uid);
-                await updateDoc(userRef, { position: newPos });
-                setUserProfile({ ...userProfile, position: newPos });
-                setIsEditingPosition(false);
-                if (myPlayerProfile) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'players', myPlayerProfile.id), { position: newPos });
-            };
-            
-            const handleDeletePlayer = (id) => {
-                if (!user) return;
-                if (isAdmin || players.find(p=>p.id===id)?.uid === user?.uid) {
-                    askConfirmation("¿Vas a eliminar a este jugador de la lista?", async () => await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'players', id)));
-                }
-            };
-            const handleDeleteMatch = (idMatch) => {
-                if (!user) return;
-                const match = matches.find(m => m.id === idMatch);
-                const isCreator = match && match.createdBy === user.uid;
-                if(isAdmin || isCreator) {
-                    askConfirmation("¿Vas a eliminar este partido permanentemente?", async () => await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'matches', idMatch)));
-                }
-            };
-            
-            // --- NUEVA FUNCIÓN PARA DISOLVER EQUIPO ---
-            const handleDeleteTeam = async () => {
-                if(!user || !myTeam) return;
-                askConfirmation("¿Estás seguro de que quieres disolver el equipo? Esta acción no se puede deshacer.", async () => {
-                    try {
-                        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'teams', myTeam.id));
-                        setMyTeam(null);
-                        alert("Equipo disuelto.");
-                    } catch(e) { alert("Error: " + e.message); }
-                });
-            };
-
-            // --- NUEVA FUNCIÓN PARA ABANDONAR EQUIPO ---
-            const handleLeaveTeam = async () => {
-                if(!user || !myTeam) return;
-                askConfirmation("¿Salir del equipo?", async () => {
-                    try {
-                          const updatedMembers = myTeam.members.filter(m => m.uid !== user.uid);
-                          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'teams', myTeam.id), { members: updatedMembers });
-                          setMyTeam(null);
-                    } catch(e) { alert(e.message); }
-                });
-            };
-            
+            // CRUD Equipos
             const handleCreateTeam = async (e) => {
                 e.preventDefault();
-                if (!user || !newTeamName) return;
-                setSubmitting(true);
-                
                 try {
-                    let logoUrl = "";
-                    if (teamLogoFile) {
-                        const compressedLogo = await compressImage(teamLogoFile);
-                        const logoRef = ref(storage, `artifacts/${appId}/public/data/team_logos/${user.uid}_${Date.now()}.jpg`);
-                        await uploadBytes(logoRef, compressedLogo);
-                        logoUrl = await getDownloadURL(logoRef);
-                    }
-
                     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'teams'), {
-                        name: newTeamName, 
-                        captainId: user.uid, 
-                        captainName: userProfile?.nickname || user.displayName, 
-                        logoUrl: logoUrl,
+                        name: forms.newTeamName, captainId: user.uid, captainName: userProfile?.nickname || user.displayName,
                         members: [{ uid: user.uid, name: userProfile?.nickname || user.displayName, role: 'captain', status: 'active' }],
-                        searchName: newTeamName.toLowerCase(), 
-                        createdAt: serverTimestamp()
+                        searchName: forms.newTeamName.toLowerCase(), createdAt: serverTimestamp()
                     });
-                    
-                    setNewTeamName(''); 
-                    setTeamLogoFile(null);
-                    setShowCreateTeamModal(false); 
-                    setView('team');
-                    alert("¡Equipo creado! Ahora eres el capitán.");
-                } catch(err) { 
-                    alert("Error: " + err.message); 
-                } finally { 
-                    setSubmitting(false); 
-                }
+                    setActiveModal(null); setView('team');
+                } catch(e) { alert(e.message); }
             };
-            const handleCreateDemoTeam = async () => {
-                if (!user) return;
-                const demoPlayers = [{ uid: 'd1', name: 'Esteban', role: 'player', status: 'active' }, { uid: 'd2', name: 'Pedro', role: 'player', status: 'active' }];
-                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'teams'), {
-                    name: "Dream Team (Demo)", captainId: user.uid, captainName: userProfile?.nickname || user.displayName,
-                    members: [{ uid: user.uid, name: userProfile?.nickname || user.displayName, role: 'captain', status: 'active' }, ...demoPlayers],
-                    searchName: "dream team demo", createdAt: serverTimestamp()
-                });
-                alert("Equipo Demo Generado!");
-            };
-            
-            const handleToggleMemberStatus = async (memberUid, currentStatus) => {
-                if (!myTeam || !user) return;
-                if (isCaptain || user.uid === memberUid) {
-                    const newStatus = currentStatus === 'active' ? 'injured' : 'active';
-                    const updatedMembers = myTeam.members.map(m => m.uid === memberUid ? { ...m, status: newStatus } : m);
-                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'teams', myTeam.id), { members: updatedMembers });
-                } else {
-                    alert("Solo el capitán o el propio jugador pueden cambiar este estado.");
-                }
-            };
-
-            const handleSearchUsers = async (e) => {
-                e.preventDefault(); if (!searchQuery.trim()) return;
-                const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), where('searchName', '>=', searchQuery.toLowerCase()), where('searchName', '<=', searchQuery.toLowerCase() + '\uf8ff'));
-                const snaps = await getDocs(q); setSearchResults(snaps.docs.map(d => d.data()));
-            };
-            const handleSearchTeams = async (e) => {
-                e.preventDefault(); if (!teamSearchQuery.trim()) return;
-                const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'teams'), where('searchName', '>=', teamSearchQuery.toLowerCase()), where('searchName', '<=', teamSearchQuery.toLowerCase() + '\uf8ff'));
-                const snaps = await getDocs(q); setTeamSearchResults(snaps.docs.map(d => ({id: d.id, ...d.data()})));
-            };
-
-            const sendSystemInvite = async (targetUser) => {
-                if (!user || !myTeam) return;
-                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'invitations'), { type: 'recruit', fromUserId: user.uid, fromName: userProfile?.nickname || user.displayName, teamId: myTeam.id, teamName: myTeam.name, toUserId: targetUser.uid, toPlayerName: targetUser.nickname || targetUser.name, place: "Fichaje", time: "General", status: 'pending', createdAt: serverTimestamp() });
-                alert("Solicitud de fichaje enviada internamente.");
-            };
-            const sendJoinRequest = async (targetTeam) => {
-                if (!user) return;
-                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'invitations'), { type: 'join_request', fromUserId: user.uid, fromName: userProfile?.nickname || user.displayName, teamId: targetTeam.id, teamName: targetTeam.name, toUserId: targetTeam.captainId, status: 'pending', createdAt: serverTimestamp() });
-                alert("Solicitud enviada"); setShowTeamSearchModal(false);
-            };
-            const openInviteModal = (player) => {
-                if (!user) { setShowLoginModal(true); return; }
-                if (!myTeam || myTeam.captainId !== user.uid) { alert("Solo capitanes."); return; }
-                setTargetPlayer(player); setInviteData({ place: '', time: '' }); setShowInviteModal(true);
-            };
-
-            const sendInvitation = async (e) => {
-                e.preventDefault();
-                if (!user || !myTeam || !targetPlayer) return;
-                setSubmitting(true);
-                try {
-                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'invitations'), {
-                        type: 'recruit',
-                        fromUserId: user.uid,
-                        fromName: userProfile?.nickname || user.displayName,
-                        teamId: myTeam.id,
-                        teamName: myTeam.name,
-                        toUserId: targetPlayer.uid,
-                        toPlayerName: targetPlayer.name,
-                        place: inviteData.place,
-                        time: inviteData.time,
-                        status: 'pending',
-                        createdAt: serverTimestamp()
-                    });
-                    setShowInviteModal(false);
-                    setInviteData({ place: '', time: '' });
-                    alert(`¡Invitación enviada a ${targetPlayer.name}!`);
-                } catch (err) {
-                    alert("Error al enviar invitación: " + err.message);
-                } finally {
-                    setSubmitting(false);
-                }
-            };
-
-            const handleRespondInvitation = async (inv, response) => {
-                if (!user) return;
-                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'invitations', inv.id), { status: response });
-                if (response === 'accepted') {
-                    const teamRef = doc(db, 'artifacts', appId, 'public', 'data', 'teams', inv.teamId);
-                    const snap = await getDoc(teamRef);
-                    if (snap.exists() && !snap.data().members.some(m => m.uid === (inv.type === 'join_request' ? inv.fromUserId : user.uid))) {
-                        const uidToAdd = inv.type === 'join_request' ? inv.fromUserId : user.uid;
-                        const nameToAdd = inv.type === 'join_request' ? inv.fromName : (userProfile?.nickname || user.displayName);
-                        await updateDoc(teamRef, { members: arrayUnion({ uid: uidToAdd, name: nameToAdd, role: 'player', status: 'active' }) });
-                        alert(`¡${nameToAdd} se unió a ${inv.teamName}!`);
-                    }
-                }
-            };
-            const mockAction = (msg) => { if(!user) return setShowLoginModal(true); alert(msg); }
 
             // --- VISTAS ---
-            if (view === 'landing') {
+            if(view === 'landing') {
                 return (
-                    <div className="flex-1 flex flex-col items-center justify-center p-6 text-center bg-gradient-to-br from-[#003300] to-[#001a00] relative overflow-hidden h-screen">
-                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,_rgba(0,255,85,0.1),_transparent_70%)]"></div>
-                        <div className="z-10 mb-12 transform hover:scale-105 transition-transform duration-500 flex flex-col items-center">
-                            <img 
-                                src="https://i.imgur.com/F7p7sXT.png" 
-                                alt="El Capitán" 
-                                className="w-64 sm:w-80 object-contain drop-shadow-[0_0_15px_rgba(0,255,85,0.3)]" 
-                            />
-                        </div>
-                        <div className="z-10 w-full max-w-sm space-y-4">
+                    <div className="flex-1 flex flex-col items-center justify-center p-6 text-center bg-gradient-to-br from-[#003300] to-[#001a00] h-screen text-white">
+                        <img src="https://i.imgur.com/F7p7sXT.png" alt="Logo" className="w-64 mb-8 drop-shadow-[0_0_15px_rgba(0,255,85,0.3)] animate-fade-in"/>
+                        <div className="w-full max-w-sm space-y-4">
                             {user ? (
-                                <button onClick={() => setView('app')} className="w-full bg-[#00ff55] hover:bg-white text-black font-black py-4 rounded-xl shadow-[0_0_20px_rgba(0,255,85,0.4)] flex items-center justify-center gap-2 uppercase tracking-wide transition-all"><User size={24}/> Continuar como {userProfile?.nickname || user.displayName?.split(' ')[0]}</button>
+                                <button onClick={() => setView('app')} className="w-full bg-[#00ff55] text-black font-black py-4 rounded-xl shadow-lg flex items-center justify-center gap-2">CONTINUAR COMO {userProfile?.nickname?.toUpperCase()}</button>
                             ) : (
-                                <button onClick={handleGoogleLogin} className="w-full bg-white hover:bg-gray-100 text-gray-800 font-bold py-3 px-4 rounded-xl shadow-lg flex items-center justify-center gap-3 transition-all active:scale-95 border border-gray-200">
-                                    <svg className="w-5 h-5" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.17c-.22-.66-.35-1.36-.35-2.17s.13-1.51.35-2.17V7.61H2.18C.79 10.37.79 13.63 2.18 16.39l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.05l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-                                    Continuar con Google
+                                <button onClick={loginGoogle} className="w-full bg-white text-gray-800 font-bold py-3 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2">
+                                    <span className="text-xl">G</span> Ingresar con Google
                                 </button>
                             )}
-                            <button onClick={handleGuest} className="w-full bg-white/5 hover:bg-white/10 text-[#00ff55] border-2 border-[#00ff55]/50 font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-all"><Users size={20}/> Entrar como Invitado</button>
+                            <button onClick={() => setView('app')} className="w-full border-2 border-[#00ff55] text-[#00ff55] font-bold py-3 rounded-xl">Solo mirar</button>
                         </div>
                     </div>
                 );
             }
 
-            // FEED FILTRADO
-            const feedMatches = matches.filter(m => 
-                (formatFilter === 'Todos' || m.format === formatFilter) && 
-                (zoneFilter === 'Todas' || m.zone === zoneFilter) &&
-                (m.date >= yesterdayString)
-            );
+            const feedMatches = matches.filter(m => (filters.format === 'Todos' || m.format === filters.format) && (filters.zone === 'Todas' || m.zone === filters.zone));
 
             return (
-                <div className="flex-1 flex flex-col pb-24">
+                <div className="flex-1 flex flex-col pb-24 bg-gray-50 min-h-screen">
+                    {/* HEADER */}
                     <header className="bg-gradient-to-r from-[#003300] to-[#004d26] border-b-4 border-[#00ff55] sticky top-0 z-50 shadow-xl">
-                        {/* HEADER MÓVIL: 2 FILAS */}
-                        <div className="sm:hidden flex flex-col w-full">
-                            {/* Fila 1: Logo y Usuario */}
-                            <div className="flex justify-between items-center px-4 py-2 border-b border-white/10 bg-[#001a00]">
-                                <img src="https://i.imgur.com/aVwYCPF.png" alt="El Capitán" className="h-8 object-contain" />
-                                <div className="flex items-center">
-                                    {user ? (
-                                        <button className="relative p-2 text-gray-300 hover:text-white" onClick={() => setShowNotifications(!showNotifications)}>
-                                            <Bell size={22} className={pendingInvitations.length > 0 ? "text-[#00ff55] animate-pulse" : ""} />
-                                            {pendingInvitations.length > 0 && <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-[#003300]"></span>}
-                                        </button>
-                                    ) : (
-                                        <button onClick={() => setShowLoginModal(true)} className="text-[10px] font-bold text-[#00ff55] border border-[#00ff55] px-2 py-1 rounded flex items-center gap-1 uppercase">INGRESAR</button>
-                                    )}
-                                </div>
-                            </div>
-                            {/* Fila 2: Botonera Acciones */}
-                            <div className="grid grid-cols-4 gap-1 p-2 bg-[#002200]">
-                                <MobileHeaderButton icon={Share2} label="Invitar" onClick={handleShareApp} />
-                                <MobileHeaderButton icon={PlusCircle} label={!myTeam ? "Crear" : "Publicar"} onClick={handleClickHeaderButton} highlight={true} />
-                                <MobileHeaderButton icon={Download} label="App" onClick={handleInstallClick} />
-                                <MobileHeaderButton icon={MapPin} label="Canchas" onClick={() => setShowMapModal(true)} />
+                         <div className="flex justify-between items-center px-4 py-3">
+                            <img src="https://i.imgur.com/aVwYCPF.png" className="h-8 object-contain" alt="Logo"/>
+                            <div className="flex items-center gap-2">
+                                {user ? (
+                                    <button className="relative text-white" onClick={() => alert("Notificaciones próximamente")}>
+                                        <Bell size={22} className={pendingInvitations.length > 0 ? "text-[#00ff55] animate-pulse" : ""} />
+                                        {pendingInvitations.length > 0 && <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full border border-black"></span>}
+                                    </button>
+                                ) : (
+                                    <button onClick={() => setActiveModal('login')} className="text-[10px] font-bold text-[#00ff55] border border-[#00ff55] px-2 py-1 rounded">INGRESAR</button>
+                                )}
                             </div>
                         </div>
-
-                        {/* HEADER DESKTOP */}
-                        <div className="hidden sm:flex h-16 px-4 items-center justify-between">
-                            <div className="flex items-center gap-4">
-                                <img src="https://i.imgur.com/aVwYCPF.png" alt="El Capitán" className="h-10 object-contain" />
-                                <div className="flex gap-2">
-                                    <button onClick={handleClickHeaderButton} className="bg-[#00ff55] text-black px-3 py-1.5 rounded font-bold text-xs flex items-center gap-2"><PlusCircle size={14}/> {!myTeam ? "CREAR EQUIPO" : "PUBLICAR"}</button>
-                                    <button onClick={() => setShowMapModal(true)} className="text-white hover:text-[#00ff55] text-xs font-bold flex items-center gap-1"><MapPin size={14}/> CANCHAS</button>
-                                </div>
-                            </div>
-                            {user ? (
-                                <button onClick={() => setShowNotifications(!showNotifications)} className="text-white relative"><Bell size={20}/></button>
-                            ) : (
-                                <button onClick={() => setShowLoginModal(true)} className="text-[#00ff55] font-bold text-xs">INGRESAR</button>
-                            )}
+                        {/* Botonera Móvil */}
+                        <div className="sm:hidden grid grid-cols-4 gap-1 p-2 bg-[#002200]">
+                            <MobileHeaderButton icon={Share2} label="Invitar" onClick={() => {}} />
+                            <MobileHeaderButton icon={PlusCircle} label={!myTeam ? "Crear" : "Publicar"} onClick={() => {
+                                if(!user) setActiveModal('login');
+                                else if(!myTeam) setActiveModal('createTeam');
+                                else if(myTeam.captainId !== user.uid) alert("Solo el capitán publica");
+                                else setActiveModal('publish');
+                            }} highlight={true} />
+                            <MobileHeaderButton icon={Download} label="App" onClick={() => alert("Pronto")} />
+                            <MobileHeaderButton icon={MapPin} label="Canchas" onClick={() => setActiveModal('map')} />
                         </div>
-
-                        {/* NOTIFICACIONES */}
-                        {showNotifications && (
-                            <div className="absolute top-14 right-2 w-72 bg-[#1a1a1a] border border-gray-700 rounded-lg shadow-2xl z-[100]">
-                                <div className="p-3 bg-gray-900 border-b border-gray-800 text-xs font-bold text-gray-400">Notificaciones ({pendingInvitations.length})</div>
-                                <div className="max-h-64 overflow-y-auto">
-                                    {pendingInvitations.length > 0 ? pendingInvitations.map(inv => (
-                                        <div key={inv.id} className="p-2 border-b border-gray-800">
-                                            <div className="text-[#00ff55] text-sm font-bold">{inv.teamName}</div>
-                                            <div className="text-xs text-gray-400">Te invita a jugar.</div>
-                                        </div>
-                                    )) : <div className="p-4 text-center text-xs text-gray-500">Sin novedades</div>}
-                                </div>
-                            </div>
-                        )}
                     </header>
 
-                    {/* MAIN CONTENT */}
-                    <main className="flex-1 max-w-6xl mx-auto w-full p-2 sm:p-4 grid grid-cols-1 lg:grid-cols-12 gap-6">
-                        {/* VISTA: INICIO (FEED) */}
+                    {/* CONTENIDO PRINCIPAL */}
+                    <main className="flex-1 max-w-5xl mx-auto w-full p-2 sm:p-4 grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        
                         {view === 'app' && (
                             <>
+                                {/* Columna Partidos (8/12) */}
                                 <div className="lg:col-span-8 space-y-4">
-                                    <div className="bg-gradient-to-r from-[#1b4d2e] to-[#2e7d32] px-4 py-3 rounded-t-lg border-b-2 border-[#4caf50] flex flex-wrap gap-2 justify-between items-center text-white">
+                                    <div className="bg-[#1b4d2e] p-3 rounded-t-lg text-white flex justify-between items-center">
                                         <h2 className="font-bold flex items-center gap-2"><Calendar size={20} className="text-[#00ff55]"/> PARTIDOS</h2>
                                         <div className="flex gap-2">
-                                            <select className="bg-black/30 rounded text-xs p-1 outline-none border border-white/20" onChange={e => setFormatFilter(e.target.value)}><option value="Todos">Fmt: Todos</option><option value="F5">F5</option><option value="F7">F7</option></select>
-                                            <select className="bg-black/30 rounded text-xs p-1 outline-none border border-white/20" onChange={e => setZoneFilter(e.target.value)}><option value="Todas">Zonas: Todas</option><ZoneSelectOptions/></select>
+                                            <select className="bg-black/30 rounded text-xs p-1 border border-white/20" onChange={e => setFilters({...filters, format: e.target.value})}>
+                                                <option value="Todos">Fmt: Todos</option><option>F5</option><option>F7</option>
+                                            </select>
+                                            <select className="bg-black/30 rounded text-xs p-1 border border-white/20" onChange={e => setFilters({...filters, zone: e.target.value})}>
+                                                <option value="Todas">Zonas: Todas</option>
+                                                {Object.entries(ZONES_BY_AREA).map(([r,zs]) => <optgroup key={r} label={r}>{zs.map(z=><option key={z} value={z}>{z}</option>)}</optgroup>)}
+                                            </select>
                                         </div>
                                     </div>
-                                    <div className="bg-[#dce6dc] rounded-b-lg overflow-hidden text-gray-800 min-h-[200px]">
-                                        {loading ? <div className="p-8 text-center text-gray-500">Cargando la cancha...</div> : 
-                                         feedMatches.map(m => (
-                                            <div key={m.id} className="p-3 border-b border-gray-300 flex justify-between items-center bg-white hover:bg-gray-50">
-                                                <div>
-                                                    <div className="font-bold text-sm flex items-center gap-2">
-                                                        {m.teamName} <span className="bg-black text-[#00ff55] text-[9px] px-1 rounded">{m.format}</span>
-                                                        {m.isChallenge && <span className="text-[9px] bg-yellow-400 text-black px-1 rounded font-black flex gap-1"><Trophy size={8}/> DESAFÍO</span>}
-                                                    </div>
-                                                    <div className="text-xs text-gray-600 flex items-center gap-1 mt-1"><MapPin size={10}/> {m.place} | {m.zone}</div>
-                                                    <div className="flex items-center gap-2 mt-1">
-                                                        <div className="text-xs font-mono font-bold text-green-800">{m.date === today ? 'HOY' : m.date} - {m.time}</div>
-                                                        <span className="text-[9px] bg-gray-200 px-1 rounded text-gray-600">{m.level}</span>
-                                                    </div>
-                                                    {m.isChallenge && <div className="text-[10px] text-yellow-700 font-bold mt-1">🔥 {m.stake}</div>}
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    {(isAdmin || (user && m.createdBy === user.uid)) && <button onClick={() => { askConfirmation("¿Borrar?", async () => await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'matches', m.id))) }} className="text-red-500 bg-red-100 p-1.5 rounded"><Trash2 size={14}/></button>}
-                                                    <button onClick={() => handleJoinMatch(m)} className={`px-3 py-1.5 rounded text-xs font-bold border-b-2 ${m.playersSigned?.includes(user?.uid) ? 'bg-red-600 text-white border-red-800' : 'bg-[#008f45] text-white border-[#006400]'}`}>{m.playersSigned?.includes(user?.uid) ? 'Salir' : 'Anotarme'}</button>
-                                                </div>
-                                            </div>
-                                        ))}
+                                    <div className="bg-white rounded-b-lg shadow overflow-hidden min-h-[200px]">
+                                        {loading ? <div className="p-10 text-center text-gray-500">Cargando la cancha...</div> : 
+                                            feedMatches.length === 0 ? <div className="p-10 text-center text-gray-500">No hay partidos hoy. ¡Crea uno!</div> :
+                                            feedMatches.map(m => (
+                                                <MatchCard 
+                                                    key={m.id} 
+                                                    match={m} 
+                                                    user={user} 
+                                                    isAdmin={isAdmin} 
+                                                    onDelete={handleDeleteMatch}
+                                                    onJoin={handleJoinMatch}
+                                                />
+                                            ))
+                                        }
                                     </div>
                                 </div>
+
+                                {/* Columna Jugadores (4/12) */}
                                 <div className="lg:col-span-4 space-y-4">
-                                    <div className="bg-[#212121] text-white px-4 py-3 rounded-t-lg border-t-4 border-[#00ff55] font-bold text-sm flex items-center gap-2"><Users size={16} className="text-[#00ff55]"/> AGENTES LIBRES</div>
-                                    <div className="bg-[#dce6dc] border border-gray-600 rounded-b-lg shadow-md p-2 space-y-2">
+                                    <div className="bg-[#212121] text-white p-3 rounded-t-lg border-t-4 border-[#00ff55] font-bold text-sm flex items-center gap-2">
+                                        <Users size={16} className="text-[#00ff55]"/> AGENTES LIBRES
+                                    </div>
+                                    <div className="bg-gray-100 p-2 rounded-b-lg border border-gray-300 space-y-2">
                                         {players.map(p => (
-                                            <div key={p.id} className="bg-white p-2 rounded shadow-sm flex justify-between items-center">
-                                                <div>
-                                                    <div className="font-bold text-xs uppercase flex items-center gap-1">{p.name} <span className="text-[9px] bg-yellow-100 text-yellow-800 px-1 rounded">★ {p.rating ? p.rating.toFixed(1) : '-'}</span></div>
-                                                    <div className="text-[10px] text-gray-500">{p.position} | {p.level}</div>
-                                                </div>
-                                                {(isAdmin || (user && p.uid === user.uid)) && <button onClick={() => { askConfirmation("¿Borrar?", async () => await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'players', p.id))) }} className="text-red-500 text-[10px] font-bold border border-red-200 px-2 py-1 rounded">BAJARME</button>}
-                                            </div>
+                                            <PlayerCard 
+                                                key={p.id} 
+                                                player={p} 
+                                                user={user} 
+                                                isAdmin={isAdmin}
+                                                onDelete={handleDeletePlayer}
+                                                onInvite={myTeam && myTeam.captainId === user?.uid ? (p) => { setTargetData(p); setActiveModal('invite'); } : null}
+                                            />
                                         ))}
-                                        <div className="mt-2 pt-2 border-t border-gray-300">
-                                            <select className="w-full mb-2 text-xs p-1 rounded border" value={playerPostulationLevel} onChange={e=>setPlayerPostulationLevel(e.target.value)}>{MATCH_LEVELS.map(l=><option key={l} value={l}>{l}</option>)}</select>
-                                            <button onClick={handleJoinAsPlayer} className="w-full bg-[#212121] text-[#00ff55] font-bold text-xs py-2 rounded uppercase border border-gray-600 hover:border-[#00ff55]">Postularme</button>
+                                        <div className="pt-2 border-t border-gray-300 mt-2">
+                                            <select className="w-full mb-2 text-xs p-1 rounded border" value={forms.playerLevel} onChange={e=>setForms({...forms, playerLevel: e.target.value})}>
+                                                {MATCH_LEVELS.map(l=><option key={l} value={l}>{l}</option>)}
+                                            </select>
+                                            <button onClick={handlePostulate} className="w-full bg-[#212121] text-[#00ff55] font-bold text-xs py-2 rounded uppercase hover:bg-black transition-colors">
+                                                Postularme
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
                             </>
                         )}
 
-                        {/* VISTAS EXTRAS: TEAM, PROFILE... (Simplificadas para el fix) */}
                         {view === 'team' && (
-                            <div className="lg:col-span-12">
-                                <div className="bg-[#1a1a1a] p-4 rounded text-white text-center">
-                                    <h2 className="text-2xl font-black italic text-[#00ff55] mb-4">MI EQUIPO</h2>
-                                    {myTeam ? (
-                                        <div>
-                                            {/* Cabecera del Equipo */}
-                                            <div className="flex items-center justify-center gap-3 mb-6 border-b border-gray-700 pb-4">
-                                                 {myTeam.logoUrl ? (
-                                                     <img src={myTeam.logoUrl} alt="Logo" className="w-20 h-20 rounded-full object-cover border-4 border-[#00ff55] shadow-lg"/>
-                                                 ) : (
-                                                     <div className="w-20 h-20 rounded-full bg-gray-700 flex items-center justify-center border-4 border-gray-600">
-                                                         <Shield size={40} className="text-gray-400"/>
-                                                     </div>
-                                                 )}
-                                                <div className="text-left">
-                                                    <div className="text-2xl font-black italic text-white uppercase tracking-tighter">{myTeam.name}</div>
-                                                    <div className="text-xs text-[#00ff55] font-bold bg-green-900/30 px-2 py-0.5 rounded inline-block border border-green-800">Capitán: {myTeam.captainName}</div>
-                                                </div>
-                                            </div>
-
-                                            {/* Botonera de Acciones Rápidas */}
-                                            <div className="grid grid-cols-3 gap-2 mb-6">
-                                                <button onClick={() => setShowScoutModal(true)} className="bg-gray-800 border border-gray-600 p-2 rounded hover:bg-gray-700 flex flex-col items-center gap-1">
-                                                    <Search size={18} className="text-[#00ff55]"/>
-                                                    <span className="text-[9px] font-bold uppercase">Fichar</span>
-                                                </button>
-                                                <button onClick={() => setView('app')} className="bg-gray-800 border border-gray-600 p-2 rounded hover:bg-gray-700 flex flex-col items-center gap-1">
-                                                    <Swords size={18} className="text-yellow-500"/>
-                                                    <span className="text-[9px] font-bold uppercase">Buscar Rival</span>
-                                                </button>
-                                                <button onClick={() => { setPublishData({...publishData, type: 'rival'}); setShowPublishModal(true); }} className="bg-[#00ff55] text-black border border-[#00cc44] p-2 rounded hover:bg-white flex flex-col items-center gap-1 shadow-[0_0_10px_rgba(0,255,85,0.2)]">
-                                                    <Trophy size={18} />
-                                                    <span className="text-[9px] font-black uppercase">Publicar</span>
-                                                </button>
-                                            </div>
-                                            
-                                            {/* Lista de Miembros (Restaurada) */}
-                                            <div className="space-y-2 mb-6 text-left">
-                                                <h4 className="text-xs font-bold text-gray-500 uppercase mb-2 pl-1">Plantel</h4>
-                                                {myTeam.members?.map(m => (
-                                                    <div key={m.uid} className={`flex justify-between items-center p-3 rounded border transition-all ${m.status === 'injured' ? 'border-red-900/50 bg-red-900/10' : 'border-gray-700 bg-gray-800/50 hover:bg-gray-800'}`}>
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center font-bold text-white text-xs border border-gray-500">{m.name.charAt(0)}</div>
-                                                            <div>
-                                                                <div className="text-gray-200 text-sm font-bold flex items-center gap-2">
-                                                                    {m.name} 
-                                                                    {m.role === 'captain' && <Crown size={12} className="text-yellow-500"/>}
-                                                                </div>
-                                                                <div className={`text-[10px] font-bold uppercase ${m.status === 'injured' ? 'text-red-500' : 'text-green-500'}`}>
-                                                                    {m.status === 'injured' ? 'Baja Temporal' : 'Disponible'}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        {(isCaptain || user.uid === m.uid) && (
-                                                            <button onClick={() => handleToggleMemberStatus(m.uid, m.status)} className={`flex items-center gap-1 px-3 py-1.5 rounded text-[10px] font-bold border transition-colors ${m.status === 'active' ? 'border-red-900 text-red-400 hover:bg-red-900/20' : 'border-green-900 text-green-400 hover:bg-green-900/20'}`}>
-                                                                {m.status === 'active' ? <><UserX size={12}/> Marcar Baja</> : <><UserCheck size={12}/> Estoy Listo</>}
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                ))}
-                                            </div>
-
-                                            {/* Zona de Peligro */}
-                                            <div className="border-t border-gray-800 pt-4 mt-8">
-                                                {isCaptain ? (
-                                                    <button onClick={handleDeleteTeam} className="text-red-500 text-xs font-bold border border-red-900/50 bg-red-900/10 px-4 py-2 rounded hover:bg-red-900/30 w-full flex items-center justify-center gap-2">
-                                                        <AlertTriangle size={14}/> DISOLVER EQUIPO
-                                                    </button>
-                                                ) : (
-                                                    <button onClick={handleLeaveTeam} className="text-red-400 text-xs font-bold border border-red-900/30 px-4 py-2 rounded hover:bg-red-900/20 w-full">
-                                                        Abandonar Equipo
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="text-center py-12">
-                                            <Shield size={64} className="mx-auto text-gray-700 mb-6 opacity-50"/>
-                                            <h3 className="text-2xl font-black text-white italic mb-2">SIN EQUIPO</h3>
-                                            <p className="text-gray-400 text-sm mb-8 max-w-xs mx-auto">Crea tu propio equipo para gestionar tu plantel o busca uno existente.</p>
-                                            
-                                            <div className="flex flex-col gap-3 max-w-xs mx-auto">
-                                                <button onClick={() => setShowCreateTeamModal(true)} className="bg-[#00ff55] text-black font-black px-6 py-4 rounded-lg shadow-[0_0_20px_rgba(0,255,85,0.3)] hover:scale-105 transition-transform flex items-center justify-center gap-2 uppercase tracking-wider">
-                                                    <PlusCircle size={20}/> Crear Equipo
-                                                </button>
-                                                <button onClick={() => setShowTeamSearchModal(true)} className="bg-gray-800 text-white font-bold px-6 py-4 rounded-lg border border-gray-600 hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 uppercase tracking-wider">
-                                                    <Search size={20}/> Buscar Equipo
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-                        {view === 'profile' && (
-                            <div className="lg:col-span-12">
-                                <div className="bg-[#1a1a1a] p-6 rounded flex items-center gap-4">
-                                    <div className="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center text-4xl">👤</div>
-                                    <div>
-                                        <div className="text-2xl font-black text-white italic">{userProfile?.nickname || user?.displayName}</div>
-                                        <div className="text-[#00ff55] font-bold">★ {userRating.toFixed(1)} <span className="text-gray-500 text-xs">({userRatingCount})</span></div>
-                                    </div>
-                                </div>
-                                <button onClick={handleLogout} className="mt-4 w-full bg-red-900/30 text-red-500 py-3 rounded font-bold">CERRAR SESIÓN</button>
-                            </div>
-                        )}
-                    </main>
-
-                    {/* FOOTER INFERIOR (VISIBLE SIEMPRE) */}
-                    {view !== 'landing' && (
-                        <div className="fixed bottom-0 left-0 w-full bg-[#000000] border-t-2 border-[#00ff55] flex justify-around items-center h-20 pb-2 z-[9999] shadow-[0_-5px_20px_rgba(0,0,0,0.8)]">
-                            <button onClick={() => setView('app')} className={`flex flex-col items-center gap-1 w-full h-full justify-center ${view === 'app' ? 'text-[#00ff55]' : 'text-gray-500'}`}>
-                                <Home size={24} className={view === 'app' ? "fill-current" : ""}/> 
-                                <span className="text-[10px] font-bold uppercase">Inicio</span>
-                            </button>
-                            {/* Botón de Publicar eliminado para evitar redundancia con el header móvil */}
-                            <button onClick={() => user ? setView('team') : setShowLoginModal(true)} className={`flex flex-col items-center gap-1 w-full h-full justify-center ${view === 'team' ? 'text-[#00ff55]' : 'text-gray-500'}`}>
-                                <Shield size={24} className={view === 'team' ? "fill-current" : ""}/> 
-                                <span className="text-[10px] font-bold uppercase">Mi Equipo</span>
-                            </button>
-                            <button onClick={() => user ? setView('profile') : setShowLoginModal(true)} className={`flex flex-col items-center gap-1 w-full h-full justify-center ${view === 'profile' ? 'text-[#00ff55]' : 'text-gray-500'}`}>
-                                <User size={24} className={view === 'profile' ? "fill-current" : ""}/> 
-                                <span className="text-[10px] font-bold uppercase">Perfil</span>
-                            </button>
-                        </div>
-                    )}
-                    
-                    {/* MODALES VARIOS (Login, Publish, etc.) se mantienen igual en estructura */}
-                    {showLoginModal && (
-                        <div className="fixed inset-0 bg-black/90 z-[1000] flex items-center justify-center p-4">
-                            <div className="bg-[#1a1a1a] p-6 rounded w-full max-w-xs text-center border border-[#00ff55]">
-                                <h3 className="text-white font-bold mb-4 text-lg">ACCESO REQUERIDO</h3>
-                                <button onClick={handleGoogleLogin} className="w-full bg-white hover:bg-gray-100 text-black font-bold py-3 px-4 rounded-xl shadow-lg flex items-center justify-center gap-3 transition-all active:scale-95 border border-gray-200">
-                                    <svg className="w-5 h-5" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.17c-.22-.66-.35-1.36-.35-2.17s.13-1.51.35-2.17V7.61H2.18C.79 10.37.79 13.63 2.18 16.39l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.05l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-                                    Ingresar con Google
-                                </button>
-                                <button onClick={() => setShowLoginModal(false)} className="text-gray-500 text-xs mt-4">Cancelar</button>
-                            </div>
-                        </div>
-                    )}
-                    
-                    {/* MODAL PUBLICAR (Simplificado para el ejemplo) */}
-                    {showPublishModal && (
-                         <div className="fixed inset-0 bg-black/90 z-[1000] flex items-center justify-center p-4">
-                             <div className="bg-[#1a1a1a] p-6 rounded w-full max-w-sm text-white border border-[#00ff55]">
-                                 <h3 className="text-[#00ff55] font-black italic text-xl mb-4 text-center">PUBLICAR PARTIDO</h3>
-                                 <form onSubmit={handlePublishMatch} className="space-y-3">
-                                     {/* ... inputs del form ... */}
-                                     <div className="flex gap-2"><button type="button" onClick={() => setPublishData({...publishData, type: 'rival'})} className={`flex-1 py-1 rounded text-xs font-bold ${publishData.type==='rival'?'bg-[#00ff55] text-black':'bg-gray-800'}`}>RIVAL</button><button type="button" onClick={() => setPublishData({...publishData, type: 'player'})} className={`flex-1 py-1 rounded text-xs font-bold ${publishData.type==='player'?'bg-[#00ff55] text-black':'bg-gray-800'}`}>JUGADOR</button></div>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div className="space-y-1"><label className="text-gray-400 text-xs font-bold ml-1">Formato</label><select value={publishData.format} onChange={(e) => setPublishData({...publishData, format: e.target.value})} className="w-full bg-black/50 border border-gray-700 text-white rounded py-2 px-2 text-sm outline-none focus:border-[#00ff55]"><option>F5</option><option>F7</option><option>F9</option><option>F11</option></select></div>
-                                        <div className="space-y-1"><label className="text-gray-400 text-xs font-bold ml-1">Zona</label><select value={publishData.zone} onChange={(e) => setPublishData({...publishData, zone: e.target.value})} className="w-full bg-black/50 border border-gray-700 text-white rounded py-2 px-2 text-sm outline-none focus:border-[#00ff55]"><ZoneSelectOptions /></select></div>
-                                    </div>
-                                    
-                                    {/* SELECCIÓN DE NIVEL */}
-                                    <div className="space-y-1">
-                                        <label className="text-gray-400 text-xs font-bold ml-1">Nivel / Intensidad</label>
-                                        <select value={publishData.level} onChange={(e) => setPublishData({...publishData, level: e.target.value})} className="w-full bg-black/50 border border-gray-700 text-white rounded py-2 px-2 text-sm outline-none focus:border-[#00ff55]">
-                                            {MATCH_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
-                                        </select>
-                                    </div>
-
-                                    {/* OPCIONES DE RIVAL (DESAFÍO) */}
-                                    {publishData.type === 'rival' && (
-                                        <div className="bg-gray-800/50 p-2 rounded border border-dashed border-gray-600 space-y-2">
-                                            <div className="flex gap-2">
-                                                <button type="button" onClick={() => setPublishData({...publishData, isChallenge: false})} className={`flex-1 py-1.5 text-xs font-bold rounded border ${!publishData.isChallenge ? 'bg-gray-700 text-white border-gray-500' : 'bg-transparent text-gray-500 border-transparent'}`}>Amistoso</button>
-                                                <button type="button" onClick={() => setPublishData({...publishData, isChallenge: true})} className={`flex-1 py-1.5 text-xs font-bold rounded border ${publishData.isChallenge ? 'bg-yellow-600 text-black border-yellow-500' : 'bg-transparent text-gray-500 border-transparent'}`}>🏆 DESAFÍO</button>
-                                            </div>
-                                            {publishData.isChallenge && (
-                                                <input placeholder="¿Qué se juega? (Ej: La cancha, $1000 c/u)" className="w-full bg-black/50 p-2 rounded text-sm border border-yellow-600 text-yellow-100 placeholder-yellow-700/50" value={publishData.stake} onChange={e=>setPublishData({...publishData, stake:e.target.value})} required/>
-                                            )}
-                                        </div>
-                                    )}
-
-                                    <div className="space-y-1">
-                                        <label className="text-gray-400 text-xs font-bold ml-1">Fecha (Máx: 1 Semana)</label>
-                                        <input 
-                                            type="date" 
-                                            className="w-full bg-black/50 p-2 rounded text-sm border border-gray-700 text-white" 
-                                            value={publishData.date} 
-                                            min={today}
-                                            max={maxPublishDate}
-                                            onChange={e=>setPublishData({...publishData, date:e.target.value})} 
-                                            required
-                                        />
-                                    </div>
-                                    <input placeholder="Cancha" className="w-full bg-black/50 p-2 rounded text-sm border border-gray-700" value={publishData.place} onChange={e=>setPublishData({...publishData, place:e.target.value})} required/>
-                                    <input type="time" className="w-full bg-black/50 p-2 rounded text-sm border border-gray-700" value={publishData.time} onChange={e=>setPublishData({...publishData, time:e.target.value})} required/>
-                                    
-                                    {publishData.type === 'player' && (
-                                        <div className="space-y-2 p-3 bg-gray-800/50 rounded border border-dashed border-gray-600">
-                                            <label className="text-gray-400 text-xs font-bold">Posiciones Necesarias</label>
-                                            {neededPositions.map((pos, index) => (
-                                                <div key={index} className="flex gap-2">
-                                                    <select value={pos} onChange={(e) => handleSlotChange(index, e.target.value)} className="flex-1 bg-black/50 border border-gray-700 text-white rounded py-1.5 px-2 text-sm outline-none focus:border-[#00ff55]"><option>Cualquiera</option><option>Arquero</option><option>Defensor</option><option>Medio</option><option>Delantero</option></select>
-                                                    {neededPositions.length > 1 && (<button type="button" onClick={() => handleRemoveSlot(index)} className="text-red-500 hover:text-white"><MinusCircle size={18}/></button>)}
+                            <div className="lg:col-span-12 bg-[#1a1a1a] p-6 rounded text-center text-white min-h-[50vh] flex flex-col justify-center items-center">
+                                {myTeam ? (
+                                    <>
+                                        <h2 className="text-3xl font-black text-[#00ff55] italic mb-2">{myTeam.name}</h2>
+                                        <p className="text-gray-400 mb-6">Capitán: {myTeam.captainName}</p>
+                                        <div className="bg-gray-800 p-4 rounded w-full max-w-md">
+                                            <h3 className="text-left font-bold border-b border-gray-700 pb-2 mb-2">Plantel</h3>
+                                            {myTeam.members?.map(m => (
+                                                <div key={m.uid} className="flex justify-between items-center py-2 border-b border-gray-700/50">
+                                                    <span className="flex items-center gap-2">
+                                                        {m.role === 'captain' && <Crown size={14} className="text-yellow-500"/>} {m.name}
+                                                    </span>
+                                                    <span className={`text-xs px-2 py-0.5 rounded ${m.status==='active'?'bg-green-900 text-green-300':'bg-red-900 text-red-300'}`}>
+                                                        {m.status}
+                                                    </span>
                                                 </div>
                                             ))}
-                                            <button type="button" onClick={handleAddSlot} className="w-full text-[#00ff55] text-xs font-bold py-1 border border-[#00ff55]/30 rounded hover:bg-[#00ff55]/10">+ Agregar Jugador</button>
                                         </div>
-                                    )}
-                                     <div className="flex gap-2">
-                                         <button type="button" onClick={() => setShowPublishModal(false)} className="flex-1 py-3 text-gray-500 font-bold">Cancelar</button>
-                                         <button type="submit" className="flex-1 py-3 bg-[#00ff55] text-black font-black rounded">CONFIRMAR</button>
-                                     </div>
-                                 </form>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Shield size={64} className="text-gray-700 mb-4"/>
+                                        <h3 className="text-xl font-bold">Sin Equipo</h3>
+                                        <p className="text-gray-500 mb-4">Crea tu equipo para gestionar tu plantel y desafiar a otros.</p>
+                                        <button onClick={() => setActiveModal('createTeam')} className="bg-[#00ff55] text-black font-bold px-6 py-3 rounded-lg hover:scale-105 transition-transform">
+                                            CREAR EQUIPO
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                        )}
+
+                         {view === 'profile' && (
+                             <div className="lg:col-span-12 bg-white p-6 rounded shadow text-center">
+                                <div className="w-20 h-20 bg-gray-200 rounded-full mx-auto flex items-center justify-center text-3xl mb-4">👤</div>
+                                <h2 className="text-2xl font-bold text-gray-800">{userProfile?.nickname}</h2>
+                                <p className="text-gray-500 mb-6">{user?.email}</p>
+                                <button onClick={logout} className="text-red-500 font-bold border border-red-200 px-6 py-2 rounded hover:bg-red-50">Cerrar Sesión</button>
                              </div>
-                          </div>
+                         )}
+
+                    </main>
+
+                    {/* NAVBAR INFERIOR */}
+                    {view !== 'landing' && (
+                        <nav className="fixed bottom-0 w-full bg-black border-t-2 border-[#00ff55] flex justify-around items-center h-16 z-50 shadow-[0_-5px_20px_rgba(0,0,0,0.5)]">
+                            <button onClick={() => setView('app')} className={`flex flex-col items-center gap-1 ${view==='app'?'text-[#00ff55]':'text-gray-500'}`}>
+                                <Home size={24} className={view==='app'?'fill-current':''}/><span className="text-[10px] font-bold">INICIO</span>
+                            </button>
+                            <button onClick={() => user ? setView('team') : setActiveModal('login')} className={`flex flex-col items-center gap-1 ${view==='team'?'text-[#00ff55]':'text-gray-500'}`}>
+                                <Shield size={24} className={view==='team'?'fill-current':''}/><span className="text-[10px] font-bold">EQUIPO</span>
+                            </button>
+                            <button onClick={() => user ? setView('profile') : setActiveModal('login')} className={`flex flex-col items-center gap-1 ${view==='profile'?'text-[#00ff55]':'text-gray-500'}`}>
+                                <User size={24} className={view==='profile'?'fill-current':''}/><span className="text-[10px] font-bold">PERFIL</span>
+                            </button>
+                        </nav>
+                    )}
+
+                    {/* --- MODALES --- */}
+                    {activeModal === 'login' && (
+                        <div className="fixed inset-0 bg-black/90 z-[100] flex items-center justify-center p-4">
+                            <div className="bg-[#1a1a1a] p-6 rounded w-full max-w-xs text-center border border-[#00ff55]">
+                                <h3 className="text-white font-bold mb-4">ACCESO REQUERIDO</h3>
+                                <button onClick={loginGoogle} className="w-full bg-white text-black font-bold py-3 rounded flex items-center justify-center gap-2 mb-2">Ingresar con Google</button>
+                                <button onClick={() => setActiveModal(null)} className="text-gray-500 text-xs">Cancelar</button>
+                            </div>
+                        </div>
                     )}
                     
-                    {/* MODALES ADICIONALES RESTAURADOS PARA QUE FUNCIONEN LOS BOTONES */}
-                    {showCreateTeamModal && (
-                        <div className="fixed inset-0 bg-black/90 z-[1000] flex items-center justify-center p-4">
+                    {activeModal === 'createTeam' && (
+                        <div className="fixed inset-0 bg-black/90 z-[100] flex items-center justify-center p-4">
                             <div className="bg-[#1a1a1a] p-6 rounded w-full max-w-sm text-white border border-[#00ff55]">
-                                <h3 className="text-[#00ff55] font-black italic text-xl mb-4 text-center">CREAR EQUIPO</h3>
-                                <form onSubmit={handleCreateTeam} className="space-y-4">
-                                    <div>
-                                        <label className="text-gray-400 text-xs font-bold block mb-1">Nombre del Equipo</label>
-                                        <input type="text" value={newTeamName} onChange={(e) => setNewTeamName(e.target.value)} className="w-full bg-black/50 p-2 rounded text-sm border border-gray-700 text-white focus:border-[#00ff55] outline-none" placeholder="Ej: Los Rotos FC" required />
-                                    </div>
-                                    <div>
-                                        <label className="text-gray-400 text-xs font-bold block mb-1">Escudo (Opcional)</label>
-                                        <input type="file" accept="image/*" onChange={(e) => setTeamLogoFile(e.target.files[0])} className="w-full text-xs text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-[#00ff55] file:text-black hover:file:bg-[#00cc44]"/>
-                                    </div>
-                                    <div className="flex gap-2 pt-2">
-                                        <button type="button" onClick={() => setShowCreateTeamModal(false)} className="flex-1 py-2 text-gray-500 font-bold text-xs">CANCELAR</button>
-                                        <button type="submit" disabled={submitting} className="flex-1 py-2 bg-[#00ff55] text-black font-black rounded text-xs hover:bg-white">{submitting ? 'CREANDO...' : 'CREAR EQUIPO'}</button>
+                                <h3 className="text-[#00ff55] font-black italic text-xl mb-4 text-center">NUEVO EQUIPO</h3>
+                                <form onSubmit={handleCreateTeam}>
+                                    <input className="w-full bg-black/50 p-2 rounded mb-4 border border-gray-700 text-white" placeholder="Nombre del Equipo" value={forms.newTeamName} onChange={e=>setForms({...forms, newTeamName: e.target.value})} required />
+                                    <div className="flex gap-2">
+                                        <button type="button" onClick={() => setActiveModal(null)} className="flex-1 py-2 text-gray-500 font-bold text-xs">CANCELAR</button>
+                                        <button type="submit" className="flex-1 py-2 bg-[#00ff55] text-black font-black rounded hover:bg-white">CREAR</button>
                                     </div>
                                 </form>
-                                 <div className="mt-4 pt-4 border-t border-gray-800 text-center">
-                                    <button type="button" onClick={handleCreateDemoTeam} className="text-[10px] text-gray-500 underline">Generar Demo (Test)</button>
-                                </div>
                             </div>
                         </div>
                     )}
 
-                    {showTeamSearchModal && (
-                        <div className="fixed inset-0 bg-black/90 z-[1000] flex items-center justify-center p-4">
-                            <div className="bg-[#1a1a1a] p-6 rounded w-full max-w-sm text-white border border-gray-600 h-[80vh] flex flex-col">
-                                <div className="flex justify-between items-center mb-4">
-                                    <h3 className="text-white font-bold text-lg">Buscar Equipo</h3>
-                                    <button onClick={() => setShowTeamSearchModal(false)}><X size={20} className="text-gray-500"/></button>
-                                </div>
-                                <form onSubmit={handleSearchTeams} className="flex gap-2 mb-4">
-                                    <input value={teamSearchQuery} onChange={e=>setTeamSearchQuery(e.target.value)} className="flex-1 bg-black/50 border border-gray-700 rounded px-3 py-2 text-sm text-white" placeholder="Nombre del equipo..."/>
-                                    <button type="submit" className="bg-[#00ff55] text-black p-2 rounded"><Search size={18}/></button>
-                                </form>
-                                <div className="flex-1 overflow-y-auto space-y-2">
-                                    {teamSearchResults.map(t => (
-                                        <div key={t.id} className="bg-gray-800 p-3 rounded flex justify-between items-center">
-                                            <div className="flex items-center gap-3">
-                                                 {t.logoUrl ? <img src={t.logoUrl} className="w-8 h-8 rounded-full"/> : <Shield size={32} className="text-gray-600"/>}
-                                                 <div>
-                                                     <div className="font-bold text-sm">{t.name}</div>
-                                                     <div className="text-[10px] text-gray-400">Capitán: {t.captainName}</div>
-                                                 </div>
-                                            </div>
-                                            <button onClick={() => sendJoinRequest(t)} className="text-[#00ff55] text-xs border border-[#00ff55] px-2 py-1 rounded hover:bg-[#00ff55] hover:text-black">Unirme</button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {showScoutModal && (
-                        <div className="fixed inset-0 bg-black/90 z-[1000] flex items-center justify-center p-4">
-                            <div className="bg-[#1a1a1a] p-6 rounded w-full max-w-sm text-white border border-gray-600 h-[80vh] flex flex-col">
-                                 <div className="flex justify-between items-center mb-4">
-                                    <h3 className="text-white font-bold text-lg">Fichajes</h3>
-                                    <button onClick={() => setShowScoutModal(false)}><X size={20} className="text-gray-500"/></button>
-                                </div>
-                                <form onSubmit={handleSearchUsers} className="flex gap-2 mb-4">
-                                     <input value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} className="flex-1 bg-black/50 border border-gray-700 rounded px-3 py-2 text-sm text-white" placeholder="Nombre de jugador..."/>
-                                     <button type="submit" className="bg-[#00ff55] text-black p-2 rounded"><Search size={18}/></button>
-                                </form>
-                                 <div className="flex-1 overflow-y-auto space-y-2">
-                                    {searchResults.map(u => (
-                                        <div key={u.uid} className="bg-gray-800 p-3 rounded flex justify-between items-center">
-                                             <div>
-                                                 <div className="font-bold text-sm">{u.nickname || u.name}</div>
-                                                 <div className="text-[10px] text-gray-400">{u.position}</div>
-                                             </div>
-                                             <button onClick={() => openInviteModal(u)} className="text-[#00ff55] text-xs border border-[#00ff55] px-2 py-1 rounded hover:bg-[#00ff55] hover:text-black">Invitar</button>
-                                        </div>
-                                    ))}
-                                     {players.map(p => (
-                                        <div key={p.id} className="bg-gray-800 p-3 rounded flex justify-between items-center border border-gray-700">
-                                             <div>
-                                                 <div className="font-bold text-sm text-[#00ff55]">{p.name} <span className="text-[9px] bg-[#00ff55]/20 px-1 rounded">LIBRE</span></div>
-                                                 <div className="text-[10px] text-gray-400">{p.position} | {p.zone}</div>
-                                             </div>
-                                             <button onClick={() => openInviteModal(p)} className="text-white text-xs bg-[#00ff55]/20 border border-[#00ff55] px-2 py-1 rounded hover:bg-[#00ff55] hover:text-black">Fichar</button>
-                                        </div>
-                                     ))}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {showInviteModal && (
-                        <div className="fixed inset-0 bg-black/90 z-[1000] flex items-center justify-center p-4">
+                    {activeModal === 'publish' && (
+                        <div className="fixed inset-0 bg-black/90 z-[100] flex items-center justify-center p-4 animate-fade-in">
                             <div className="bg-[#1a1a1a] p-6 rounded w-full max-w-sm text-white border border-[#00ff55]">
-                                <h3 className="text-white font-bold text-lg mb-2">Invitar a {targetPlayer?.name}</h3>
-                                <p className="text-xs text-gray-400 mb-4">Envía una propuesta formal para que se una a tu equipo.</p>
-                                <form onSubmit={sendInvitation} className="space-y-3">
-                                     <input value={inviteData.place} onChange={e=>setInviteData({...inviteData, place:e.target.value})} className="w-full bg-black/50 border border-gray-700 rounded p-2 text-sm text-white" placeholder="Lugar / Motivo (Opcional)" />
-                                     <input type="time" value={inviteData.time} onChange={e=>setInviteData({...inviteData, time:e.target.value})} className="w-full bg-black/50 border border-gray-700 rounded p-2 text-sm text-white" />
-                                     <div className="flex gap-2 mt-4">
-                                        <button type="button" onClick={() => setShowInviteModal(false)} className="flex-1 py-2 text-gray-500 text-xs font-bold">CANCELAR</button>
-                                        <button type="submit" disabled={submitting} className="flex-1 py-2 bg-[#00ff55] text-black text-xs font-black rounded hover:bg-white">ENVIAR</button>
-                                     </div>
+                                <h3 className="text-[#00ff55] font-black italic text-xl mb-4 text-center">PUBLICAR PARTIDO</h3>
+                                <form onSubmit={handlePublish} className="space-y-3">
+                                    <div className="flex gap-2">
+                                        <button type="button" onClick={()=>setForms({...forms, publish: {...forms.publish, type: 'rival'}})} className={`flex-1 py-1 rounded text-xs font-bold ${forms.publish.type==='rival'?'bg-[#00ff55] text-black':'bg-gray-800'}`}>BUSCO RIVAL</button>
+                                        <button type="button" onClick={()=>setForms({...forms, publish: {...forms.publish, type: 'player'}})} className={`flex-1 py-1 rounded text-xs font-bold ${forms.publish.type==='player'?'bg-[#00ff55] text-black':'bg-gray-800'}`}>BUSCO JUGADOR</button>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <select className="bg-black/50 p-2 rounded text-sm border border-gray-700" onChange={e=>setForms({...forms, publish: {...forms.publish, format: e.target.value}})}><option>F5</option><option>F7</option><option>F9</option></select>
+                                        <select className="bg-black/50 p-2 rounded text-sm border border-gray-700" onChange={e=>setForms({...forms, publish: {...forms.publish, zone: e.target.value}})}><option>La Plata (Casco Urbano)</option><option>City Bell</option><option>Villa Elisa</option><option>Los Hornos</option></select>
+                                    </div>
+                                    <input type="date" className="w-full bg-black/50 p-2 rounded text-sm border border-gray-700 text-white" min={new Date().toISOString().split('T')[0]} onChange={e=>setForms({...forms, publish: {...forms.publish, date: e.target.value}})} required/>
+                                    <div className="flex gap-2">
+                                        <input placeholder="Cancha" className="flex-1 bg-black/50 p-2 rounded text-sm border border-gray-700" onChange={e=>setForms({...forms, publish: {...forms.publish, place: e.target.value}})} required/>
+                                        <input type="time" className="w-24 bg-black/50 p-2 rounded text-sm border border-gray-700 text-white" onChange={e=>setForms({...forms, publish: {...forms.publish, time: e.target.value}})} required/>
+                                    </div>
+                                    <button type="submit" className="w-full py-3 bg-[#00ff55] text-black font-black rounded mt-2 hover:bg-white transition-colors">CONFIRMAR</button>
+                                    <button type="button" onClick={() => setActiveModal(null)} className="w-full text-gray-500 text-xs mt-2">CANCELAR</button>
                                 </form>
                             </div>
-                        </div>
-                    )}
-
-                    {showMapModal && (
-                        <div className="fixed inset-0 bg-black/90 z-[1000] flex items-center justify-center p-4">
-                             <div className="bg-[#1a1a1a] p-6 rounded w-full max-w-sm text-center border border-gray-700">
-                                 <MapPin size={48} className="mx-auto text-[#00ff55] mb-4"/>
-                                 <h3 className="text-white font-bold text-lg">Mapa de Canchas</h3>
-                                 <p className="text-gray-400 text-sm mt-2">Próximamente disponible. Estamos relevando todas las canchas de La Plata.</p>
-                                 <button onClick={() => setShowMapModal(false)} className="mt-6 w-full bg-gray-800 text-white py-2 rounded font-bold text-xs">CERRAR</button>
-                             </div>
-                        </div>
-                    )}
-
-                    {showInstallModal && (
-                        <div className="fixed inset-0 bg-black/90 z-[1000] flex items-center justify-center p-4">
-                             <div className="bg-[#1a1a1a] p-6 rounded w-full max-w-sm text-center border border-[#00ff55]">
-                                 <Download size={48} className="mx-auto text-[#00ff55] mb-4"/>
-                                 <h3 className="text-white font-bold text-lg">Instalar App</h3>
-                                 <p className="text-gray-400 text-sm mt-2">Agrega El Capitán a tu pantalla de inicio para una mejor experiencia.</p>
-                                 <div className="flex gap-2 mt-6">
-                                     <button onClick={() => setShowInstallModal(false)} className="flex-1 text-gray-500 text-xs font-bold">LUEGO</button>
-                                     {deferredPrompt && <button onClick={handleInstallClick} className="flex-1 bg-[#00ff55] text-black py-2 rounded font-black text-xs">INSTALAR</button>}
-                                 </div>
-                             </div>
                         </div>
                     )}
 
                     {confirmation.show && (
-                        <div className="fixed inset-0 bg-black/90 z-[1100] flex items-center justify-center p-4">
+                        <div className="fixed inset-0 bg-black/90 z-[200] flex items-center justify-center p-4">
                             <div className="bg-[#1a1a1a] p-6 rounded w-full max-w-xs text-center border border-red-500">
-                                <AlertCircle size={48} className="text-red-500 mx-auto mb-4"/>
-                                <h3 className="text-white font-bold mb-2">¿Seguro?</h3>
-                                <div className="flex gap-2 mt-4">
-                                    <button onClick={() => setConfirmation({show:false})} className="flex-1 py-2 text-gray-400">Cancelar</button>
-                                    <button onClick={() => {confirmation.action(); setConfirmation({show:false})}} className="flex-1 py-2 bg-red-600 text-white rounded font-bold">Confirmar</button>
+                                <h3 className="text-white font-bold mb-4">{confirmation.text}</h3>
+                                <div className="flex gap-2">
+                                    <button onClick={() => setConfirmation({show:false})} className="flex-1 py-2 text-gray-400">No</button>
+                                    <button onClick={() => {confirmation.action(); setConfirmation({show:false})}} className="flex-1 py-2 bg-red-600 text-white rounded font-bold">Sí</button>
                                 </div>
                             </div>
                         </div>
