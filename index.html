@@ -10,7 +10,41 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="El Enganche">
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/431/431238.png">
+    <link rel="apple-touch-icon" id="apple-icon">
+    <link rel="icon" type="image/png" id="favicon">
+    <link rel="manifest" id="manifest-placeholder">
+
+    <!-- GENERADOR DE ÍCONO AUTOMÁTICO -->
+    <script>
+        (function() {
+            const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+                <rect width="512" height="512" fill="#111827"/>
+                <circle cx="256" cy="256" r="220" fill="#00ff55"/>
+                <circle cx="256" cy="256" r="180" fill="#111827"/>
+                <circle cx="256" cy="256" r="140" fill="#111827" stroke="#00ff55" stroke-width="20"/>
+                <path d="M256 180 L300 240 L280 300 H232 L212 240 Z" fill="#00ff55"/>
+                <circle cx="256" cy="256" r="30" fill="#111827"/>
+            </svg>`;
+            const iconUrl = "data:image/svg+xml;base64," + btoa(iconSvg);
+            document.getElementById('apple-icon').href = iconUrl;
+            document.getElementById('favicon').href = iconUrl;
+            const manifest = {
+                "name": "El Enganche",
+                "short_name": "El Enganche",
+                "start_url": ".",
+                "display": "standalone",
+                "background_color": "#111827",
+                "theme_color": "#00ff55",
+                "orientation": "portrait",
+                "icons": [
+                    { "src": iconUrl, "sizes": "192x192", "type": "image/svg+xml" },
+                    { "src": iconUrl, "sizes": "512x512", "type": "image/svg+xml" }
+                ]
+            };
+            const blob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+            document.getElementById('manifest-placeholder').setAttribute('href', URL.createObjectURL(blob));
+        })();
+    </script>
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -20,7 +54,7 @@
 
     <!-- Estilos base -->
     <style>
-        body { background-color: #111827; color: #e5e7eb; font-family: sans-serif; padding-bottom: 80px; }
+        body { background-color: #111827; color: #e5e7eb; font-family: sans-serif; padding-bottom: 70px; }
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #1a1a1a; }
         ::-webkit-scrollbar-thumb { background: #00ff55; border-radius: 4px; }
@@ -118,7 +152,7 @@
         ];
 
         const App = () => {
-            const [view, setView] = useState('landing'); // Vistas: landing, app, profile, team
+            const [view, setView] = useState('landing');
             const [showNotifications, setShowNotifications] = useState(false);
             const [formatFilter, setFormatFilter] = useState('Todos');
             const [zoneFilter, setZoneFilter] = useState('Todas');
@@ -141,6 +175,7 @@
             const [showScoutModal, setShowScoutModal] = useState(false); 
             const [showTeamSearchModal, setShowTeamSearchModal] = useState(false); 
             const [showInstallModal, setShowInstallModal] = useState(false);
+            const [showMapModal, setShowMapModal] = useState(false); 
             const [confirmation, setConfirmation] = useState({ show: false, text: '', action: null });
             
             // Forms
@@ -462,6 +497,10 @@
                                 <div className="font-black italic text-2xl tracking-tighter cursor-pointer flex items-center" onClick={() => setView('landing')}>EL <span className="text-[#00ff55]">ENGANCHE</span> <LinkIcon size={16} className="text-[#00ff55] -rotate-45 ml-1"/></div>
                             </div>
                             <div className="flex items-center gap-3">
+                                <div className="hidden md:flex gap-1 text-xs font-bold text-green-100 items-center mr-4">
+                                    <button onClick={() => setView('app')} className="hover:text-white hover:bg-white/10 px-3 py-2 rounded transition-all">Partidos</button>
+                                    <button onClick={() => setShowMapModal(true)} className="hover:text-white hover:bg-white/10 px-3 py-2 rounded transition-all">Canchas</button>
+                                </div>
                                 <div className="flex gap-2">
                                     <button onClick={handleClickHeaderButton} className="bg-[#00ff55] text-black px-3 py-1.5 rounded shadow-[0_0_10px_rgba(0,255,85,0.4)] hover:bg-white font-black uppercase text-xs flex items-center gap-1"><PlusCircle size={14}/> <span className="hidden sm:inline">{!myTeam ? "CREAR EQUIPO" : "PUBLICAR"}</span></button>
                                     <button onClick={handleInstallClick} className="bg-gray-800 text-[#00ff55] border border-[#00ff55] px-3 py-1.5 rounded shadow-[0_0_10px_rgba(0,255,85,0.2)] hover:bg-[#00ff55] hover:text-black font-black uppercase text-xs flex items-center gap-1 transition-all"><Download size={14}/> <span className="hidden sm:inline">App</span></button>
@@ -472,6 +511,9 @@
                                             <Bell size={20} className={pendingInvitations.length > 0 ? "text-[#00ff55] animate-pulse" : "text-gray-300"}/>
                                             {pendingInvitations.length > 0 && <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>}
                                         </button>
+                                        <div className="hidden xs:flex items-center gap-2 cursor-pointer" onClick={() => setView('profile')}>
+                                            <div className="w-8 h-8 rounded-full border border-gray-600 bg-gray-800 overflow-hidden">{user.photoURL ? <img src={user.photoURL} className="w-full h-full object-cover"/> : <User className="p-1 text-white"/>}</div>
+                                        </div>
                                     </div>
                                 ) : (<button onClick={() => setShowLoginModal(true)} className="text-xs font-bold text-[#00ff55] flex items-center gap-1"><User size={14}/> INGRESAR</button>)}
                             </div>
@@ -496,7 +538,7 @@
                     <div className="bg-black py-2 px-3 border-b border-gray-800 text-xs flex items-center text-gray-400 overflow-hidden whitespace-nowrap"><span className="text-[#00ff55] mr-2 animate-pulse">●</span> <span className="font-bold text-gray-200 mr-1">MERCADO:</span> Mostrando {filteredMatches.length} partidos y {players.length} agentes libres en zona La Plata.</div>
 
                     <main className="flex-1 max-w-6xl mx-auto w-full p-2 sm:p-4 grid grid-cols-1 lg:grid-cols-12 gap-6">
-                        {/* VISTA: EQUIPO (Exclusiva y separada) */}
+                        {/* VISTA: EQUIPO */}
                         {view === 'team' && user ? (
                             <div className="lg:col-span-12 space-y-4">
                                 <div className="bg-[#1a1a1a] rounded-lg border border-gray-800 p-4">
@@ -514,12 +556,8 @@
                                                                 <div className={`text-xs ${m.status === 'injured' ? 'text-red-500 font-bold uppercase' : 'text-[#00ff55]'}`}>{m.status === 'injured' ? 'Baja Temporal' : 'Activo'}</div>
                                                             </div>
                                                         </div>
-                                                        {/* Botón visible para el Capitán O para el propio usuario */}
                                                         {(isCaptain || user.uid === m.uid) && (
-                                                            <button 
-                                                                onClick={() => handleToggleMemberStatus(m.uid, m.status)} 
-                                                                className={`flex items-center gap-1 px-3 py-1.5 rounded text-[10px] font-bold border transition-colors ${m.status === 'active' ? 'border-red-900 text-red-500 hover:bg-red-900/20' : 'border-green-900 text-green-500 hover:bg-green-900/20'}`}
-                                                            >
+                                                            <button onClick={() => handleToggleMemberStatus(m.uid, m.status)} className={`flex items-center gap-1 px-3 py-1.5 rounded text-[10px] font-bold border transition-colors ${m.status === 'active' ? 'border-red-900 text-red-500 hover:bg-red-900/20' : 'border-green-900 text-green-500 hover:bg-green-900/20'}`}>
                                                                 {m.status === 'active' ? <><UserX size={12}/> Marcar Baja</> : <><UserCheck size={12}/> Estoy Listo</>}
                                                             </button>
                                                         )}
@@ -540,7 +578,7 @@
                                 </div>
                             </div>
                         ) : view === 'profile' && user ? (
-                            /* VISTA: PERFIL (Solo datos personales) */
+                            /* VISTA: PERFIL */
                             <div className="lg:col-span-12 space-y-4">
                                 <div className="bg-[#1a1a1a] p-6 rounded-lg border border-gray-800 flex flex-col sm:flex-row items-center gap-6 relative">
                                     <div className="w-24 h-24 rounded-full border-4 border-[#00ff55] overflow-hidden bg-black">{user.photoURL ? <img src={user.photoURL} className="w-full h-full object-cover"/> : <User className="w-full h-full p-4 text-gray-500"/>}</div>
@@ -665,7 +703,7 @@
                                     )}
                                     <div className="flex gap-2">
                                         <button type="button" onClick={() => setShowPublishModal(false)} className="flex-1 text-gray-400 text-xs">Cancelar</button>
-                                        <button type="submit" className="flex-1 bg-[#00ff55] text-black font-bold py-2 rounded text-xs">{submitting ? <Loader2 className="animate-spin mx-auto"/> : 'PUBLICAR'}</button>
+                                        <button type="submit" className="flex-1 bg-[#00ff55] text-black font-bold py-2 rounded text-xs">PUBLICAR</button>
                                     </div>
                                 </form>
                             </div>
@@ -679,7 +717,7 @@
                                 <form onSubmit={sendInvitation} className="space-y-3">
                                     <input placeholder="Lugar" className="w-full bg-black/50 p-2 rounded text-sm border border-gray-700" value={inviteData.place} onChange={e=>setInviteData({...inviteData, place:e.target.value})} required/>
                                     <input type="time" className="w-full bg-black/50 p-2 rounded text-sm border border-gray-700" value={inviteData.time} onChange={e=>setInviteData({...inviteData, time:e.target.value})} required/>
-                                    <button type="submit" className="w-full bg-[#00ff55] text-black font-bold py-2 rounded text-xs">{submitting ? 'ENVIANDO...' : 'ENVIAR'}</button>
+                                    <button type="submit" className="w-full bg-[#00ff55] text-black font-bold py-2 rounded text-xs">ENVIAR</button>
                                     <button type="button" onClick={() => setShowInviteModal(false)} className="w-full text-gray-500 text-xs mt-2">Cancelar</button>
                                 </form>
                             </div>
@@ -692,7 +730,7 @@
                                 <h3 className="font-bold mb-2 text-[#00ff55]">CREAR EQUIPO</h3>
                                 <form onSubmit={handleCreateTeam} className="space-y-3">
                                     <input placeholder="Nombre del Equipo" className="w-full bg-black/50 p-2 rounded text-sm border border-gray-700" value={newTeamName} onChange={e=>setNewTeamName(e.target.value)} required/>
-                                    <button type="submit" className="w-full bg-[#00ff55] text-black font-bold py-2 rounded text-xs">{submitting ? 'CREANDO...' : 'FUNDAR'}</button>
+                                    <button type="submit" className="w-full bg-[#00ff55] text-black font-bold py-2 rounded text-xs">FUNDAR</button>
                                     <button type="button" onClick={() => setShowCreateTeamModal(false)} className="w-full text-gray-500 text-xs mt-2">Cancelar</button>
                                 </form>
                             </div>
@@ -735,7 +773,17 @@
                             </div>
                         </div>
                     )}
-
+                    
+                    {showMapModal && (
+                        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[100]">
+                            <div className="bg-[#1a1a1a] p-2 rounded border border-[#00ff55] w-full max-w-4xl h-[80vh] flex flex-col relative">
+                                <button onClick={() => setShowMapModal(false)} className="absolute top-4 right-4 bg-black/50 text-white p-2 rounded-full z-10"><X size={24}/></button>
+                                <h3 className="text-white font-bold p-4 flex items-center gap-2"><MapPin size={20} className="text-[#00ff55]"/> CANCHAS EN LA PLATA</h3>
+                                <iframe src="https://www.google.com/maps/embed?pb=!1m16!1m12!1m3!1d52340.86592209146!2d-58.02055627258925!3d-34.92288326694318!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!2m1!1scanchas%20de%20futbol%20en%20la%20plata!5e0!3m2!1ses!2sar!4v1705355600867!5m2!1ses!2sar" width="100%" height="100%" style={{border:0, flex:1, borderRadius: '0.5rem', filter: 'invert(90%) hue-rotate(180deg)'}} allowFullScreen="" loading="lazy" referrerPolicy="no-referrer-when-downgrade"></iframe>
+                            </div>
+                        </div>
+                    )}
+                    
                     {showInstallModal && (
                         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[100]">
                             <div className="bg-[#1a1a1a] p-6 rounded border border-[#00ff55] w-full max-w-sm text-center">
@@ -767,7 +815,6 @@
                     {user && (
                         <div className="fixed bottom-0 left-0 w-full bg-[#111] border-t border-gray-800 flex justify-around items-center h-16 z-50">
                             <button onClick={() => setView('app')} className={`flex flex-col items-center gap-1 ${view === 'app' ? 'text-[#00ff55]' : 'text-gray-500'}`}><Home size={20}/> <span className="text-[10px]">Inicio</span></button>
-                            <button onClick={handleClickHeaderButton} className="flex flex-col items-center gap-1 text-gray-500 hover:text-white"><PlusCircle size={20}/> <span className="text-[10px]">{!myTeam ? "Crear" : "Publicar"}</span></button>
                             <button onClick={() => setView('team')} className={`flex flex-col items-center gap-1 ${view === 'team' ? 'text-[#00ff55]' : 'text-gray-500'}`}><Shield size={20}/> <span className="text-[10px]">Mi Equipo</span></button>
                             <button onClick={() => setView('profile')} className={`flex flex-col items-center gap-1 ${view === 'profile' ? 'text-[#00ff55]' : 'text-gray-500'}`}><div className="w-5 h-5 rounded-full border border-current overflow-hidden">{user.photoURL ? <img src={user.photoURL} className="w-full h-full object-cover"/> : <User size={12} className="w-full h-full p-0.5"/>}</div><span className="text-[10px]">Perfil</span></button>
                         </div>
