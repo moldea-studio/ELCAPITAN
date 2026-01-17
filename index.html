@@ -83,7 +83,7 @@
             Link as LinkIcon, User, LogOut, Mail, Lock, Trash2, Ban, Trophy, 
             Activity, ArrowLeft, HelpCircle, FileText, Lock as LockIcon, Bell, 
             CheckCircle, XCircle, Send, Crown, UserPlus, Share2, Edit2, Save, MinusCircle,
-            Home, Zap, ClipboardList, AlertTriangle, Download, UserCheck, UserX, Clock, MessageCircle, Beer
+            Home, Zap, ClipboardList, AlertTriangle, Download, UserCheck, UserX, Clock, MessageCircle, Beer, Flame, Banknote
         } from 'https://esm.sh/lucide-react@0.294.0';
         
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
@@ -144,6 +144,8 @@
             "Zona Este": ["Ensenada", "Berisso"]
         };
 
+        const MATCH_LEVELS = ["Tranqui / Joda 🍻", "Picado Medio ⚽", "A Morir (Competitivo) 🏆"];
+
         // --- GENERADOR DE FECHAS PARA DUMMY DATA ---
         const today = new Date().toISOString().split('T')[0];
         const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
@@ -151,20 +153,30 @@
 
         const INITIAL_MATCHES = [
             // Partido Pasado (Para probar calificación)
-            { date: yesterday, time: '20:00', place: 'Predio El Rincón', zone: 'La Plata (Casco Urbano)', format: 'F5', type: 'player', missing: 0, position: 'Arquero', teamName: 'Los Rotos FC', urgent: false, playersSigned: ['dummy_1', 'dummy_2'] },
-            // Partidos Futuros
-            { date: today, time: '21:00', place: 'Club Atl. Villa Elisa', zone: 'Villa Elisa', format: 'F7', type: 'rival', missing: 0, position: 'Equipo Completo', teamName: 'Defensores VE', urgent: true },
-            { date: tomorrow, time: '19:00', place: 'La Plaza', zone: 'City Bell', format: 'F5', type: 'player', missing: 2, position: 'Defensores', teamName: 'Inter CB', urgent: false },
-            { date: tomorrow, time: '22:00', place: 'Estación Norte', zone: 'Ringuelet', format: 'F5', type: 'player', missing: 1, position: 'Cualquiera', teamName: 'La Máquina', urgent: false },
-            { date: today, time: '20:30', place: 'Complejo 44', zone: 'San Carlos', format: 'F9', type: 'rival', missing: 0, position: 'Equipo', teamName: 'San Carlos Jr', urgent: true },
+            { date: yesterday, time: '20:00', place: 'Predio El Rincón', zone: 'La Plata (Casco Urbano)', format: 'F5', type: 'player', missing: 0, position: 'Arquero', teamName: 'Los Rotos FC', urgent: false, playersSigned: ['dummy_1', 'dummy_2'], level: 'Picado Medio ⚽' },
+            
+            // Desafío Económico (Cancha)
+            { date: today, time: '21:00', place: 'Club Atl. Villa Elisa', zone: 'Villa Elisa', format: 'F7', type: 'rival', isChallenge: true, stake: 'La cancha (aprox $30.000)', missing: 0, position: 'Equipo Completo', teamName: 'Defensores VE', urgent: true, level: 'A Morir (Competitivo) 🏆' },
+            
+            // Partido normal buscando jugadores
+            { date: tomorrow, time: '19:00', place: 'La Plaza', zone: 'City Bell', format: 'F5', type: 'player', missing: 2, position: 'Defensores', teamName: 'Inter CB', urgent: false, level: 'Tranqui / Joda 🍻' },
+            
+            // Desafío "Cajón de Cerveza"
+            { date: today, time: '23:00', place: 'Complejo 44', zone: 'San Carlos', format: 'F9', type: 'rival', isChallenge: true, stake: 'Un cajón de cerveza 🍺', missing: 0, position: 'Equipo', teamName: 'San Carlos Jr', urgent: true, level: 'Picado Medio ⚽' },
+            
+            // Desafío "Asado"
+            { date: tomorrow, time: '20:00', place: 'Lawn Tennis', zone: 'La Plata (Casco Urbano)', format: 'F5', type: 'rival', isChallenge: true, stake: 'El Asado del 3T 🥩', missing: 0, position: 'Equipo', teamName: 'Los Parrilleros', urgent: false, level: 'Tranqui / Joda 🍻' },
+            
+            // Partido normal buscando jugador
+            { date: tomorrow, time: '22:00', place: 'Estación Norte', zone: 'Ringuelet', format: 'F5', type: 'player', missing: 1, position: 'Cualquiera', teamName: 'La Máquina', urgent: false, level: 'Picado Medio ⚽' },
         ];
 
         const INITIAL_PLAYERS = [
-            { uid: 'dummy_1', name: 'Lucho M.', position: 'Arquero', zone: 'Villa Elisa', rating: 4.5, ratingCount: 10, status: 'Disponible' },
-            { uid: 'dummy_2', name: 'El Distinto', position: 'Medio', zone: 'La Plata (Casco Urbano)', rating: 5.0, ratingCount: 3, status: 'Disponible' },
-            { uid: 'dummy_3', name: 'Santi G.', position: 'Delantero', zone: 'Gonnet', rating: 3.2, ratingCount: 5, status: 'Disponible' },
-            { uid: 'dummy_4', name: 'El Muro', position: 'Defensor', zone: 'Tolosa', rating: 4.0, ratingCount: 8, status: 'Lesionado' },
-            { uid: 'dummy_5', name: 'Alejo B.', position: 'Polifuncional', zone: 'City Bell', rating: 0, ratingCount: 0, status: 'Disponible' },
+            { uid: 'dummy_1', name: 'Lucho M.', position: 'Arquero', zone: 'Villa Elisa', rating: 4.5, ratingCount: 10, status: 'Disponible', level: 'A Morir (Competitivo) 🏆' },
+            { uid: 'dummy_2', name: 'El Distinto', position: 'Medio', zone: 'La Plata (Casco Urbano)', rating: 5.0, ratingCount: 3, status: 'Disponible', level: 'Picado Medio ⚽' },
+            { uid: 'dummy_3', name: 'Santi G.', position: 'Delantero', zone: 'Gonnet', rating: 3.2, ratingCount: 5, status: 'Disponible', level: 'Tranqui / Joda 🍻' },
+            { uid: 'dummy_4', name: 'El Muro', position: 'Defensor', zone: 'Tolosa', rating: 4.0, ratingCount: 8, status: 'Lesionado', level: 'A Morir (Competitivo) 🏆' },
+            { uid: 'dummy_5', name: 'Alejo B.', position: 'Polifuncional', zone: 'City Bell', rating: 0, ratingCount: 0, status: 'Disponible', level: 'Picado Medio ⚽' },
         ];
 
         const App = () => {
@@ -209,9 +221,13 @@
             const [targetPlayer, setTargetPlayer] = useState(null);
             const [inviteData, setInviteData] = useState({ place: '', time: '' });
             const [newTeamName, setNewTeamName] = useState('');
-            const [publishData, setPublishData] = useState({ type: 'player', format: 'F5', zone: 'La Plata (Casco Urbano)', place: '', time: '', date: '' });
+            // Added level, stake, isChallenge
+            const [publishData, setPublishData] = useState({ type: 'player', format: 'F5', zone: 'La Plata (Casco Urbano)', place: '', time: '', date: '', level: 'Picado Medio ⚽', isChallenge: false, stake: '' });
             const [neededPositions, setNeededPositions] = useState(['Cualquiera']);
             
+            // Player Postulation Form
+            const [playerPostulationLevel, setPlayerPostulationLevel] = useState('Picado Medio ⚽');
+
             const [searchQuery, setSearchQuery] = useState(''); 
             const [searchResults, setSearchResults] = useState([]); 
             const [teamSearchQuery, setTeamSearchQuery] = useState(''); 
@@ -247,11 +263,10 @@
                                 const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', u.uid);
                                 const snap = await getDoc(userRef);
                                 if (!snap.exists()) {
-                                    // Si es usuario nuevo, seteamos el apodo igual al displayName inicial
                                     await setDoc(userRef, { 
                                         uid: u.uid, 
                                         name: u.displayName, 
-                                        nickname: u.displayName, // Apodo por defecto
+                                        nickname: u.displayName, 
                                         email: u.email, 
                                         position: 'Polifuncional',
                                         searchName: u.displayName ? u.displayName.toLowerCase() : '', 
@@ -362,8 +377,6 @@
                 // Verificación de duplicados
                 const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), where('nickname', '==', newNickname));
                 const snap = await getDocs(q);
-                
-                // Filtramos si el documento encontrado es el mismo usuario (por si guarda el mismo nombre)
                 const isTaken = snap.docs.some(d => d.id !== user.uid);
 
                 if (isTaken) {
@@ -372,26 +385,15 @@
                 }
 
                 try {
-                    // Actualizar Perfil de Usuario
                     const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.uid);
-                    await updateDoc(userRef, { 
-                        nickname: newNickname,
-                        searchName: newNickname.toLowerCase()
-                    });
-                    
-                    // Actualizar si está en la lista de jugadores libres
+                    await updateDoc(userRef, { nickname: newNickname, searchName: newNickname.toLowerCase() });
                     const qPlayer = query(collection(db, 'artifacts', appId, 'public', 'data', 'players'), where('uid', '==', user.uid));
                     const playerSnap = await getDocs(qPlayer);
-                    playerSnap.forEach(async (d) => {
-                        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'players', d.id), { name: newNickname });
-                    });
-
+                    playerSnap.forEach(async (d) => { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'players', d.id), { name: newNickname }); });
                     setUserProfile({ ...userProfile, nickname: newNickname });
                     setIsEditingNickname(false);
                     alert("¡Apodo actualizado correctamente!");
-                } catch(e) {
-                    alert("Error al guardar: " + e.message);
-                }
+                } catch(e) { alert("Error al guardar: " + e.message); }
             };
 
             // --- RATING LOGIC ---
@@ -403,9 +405,7 @@
 
             const selectPlayerToRate = (playerId) => {
                 let p = players.find(x => x.uid === playerId);
-                if (!p) {
-                    p = { uid: playerId, name: 'Jugador Invitado' }; 
-                }
+                if (!p) { p = { uid: playerId, name: 'Jugador Invitado' }; }
                 setRatingTargetPlayer(p);
                 setRatings({ game: 3, punctuality: 3, fairplay: 3, communication: 3, social: 3 });
                 setRatingStep('form');
@@ -415,29 +415,16 @@
                 if (!ratingTargetPlayer || !ratingTargetPlayer.uid.startsWith('dummy')) {
                     const playerDoc = players.find(p => p.uid === ratingTargetPlayer.uid);
                     if (playerDoc) {
-                        const weightedScore = (ratings.game * 0.5) + 
-                                              (ratings.punctuality * 0.125) + 
-                                              (ratings.fairplay * 0.125) + 
-                                              (ratings.communication * 0.125) + 
-                                              (ratings.social * 0.125);
-                        
+                        const weightedScore = (ratings.game * 0.5) + (ratings.punctuality * 0.125) + (ratings.fairplay * 0.125) + (ratings.communication * 0.125) + (ratings.social * 0.125);
                         const currentRating = playerDoc.rating || 0;
                         const currentCount = playerDoc.ratingCount || 0;
                         const newCount = currentCount + 1;
                         const newRating = ((currentRating * currentCount) + weightedScore) / newCount;
-
                         try {
-                            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'players', playerDoc.id), {
-                                rating: newRating,
-                                ratingCount: newCount
-                            });
+                            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'players', playerDoc.id), { rating: newRating, ratingCount: newCount });
                             alert(`¡Calificación enviada! Nuevo promedio: ${newRating.toFixed(1)}`);
-                        } catch(e) {
-                            alert("Error al guardar calificación: " + e.message);
-                        }
-                    } else {
-                        alert("Este jugador es de prueba y no tiene perfil real para guardar.");
-                    }
+                        } catch(e) { alert("Error al guardar calificación: " + e.message); }
+                    } else { alert("Este jugador es de prueba y no tiene perfil real para guardar."); }
                 }
                 setShowRatingModal(false);
             };
@@ -450,12 +437,7 @@
                     </div>
                     <div className="flex gap-2">
                         {[1, 2, 3, 4, 5].map((star) => (
-                            <button 
-                                key={star} 
-                                type="button"
-                                onClick={() => onChange(star)}
-                                className={`flex-1 h-2 rounded-full transition-all ${star <= value ? 'bg-[#00ff55] shadow-[0_0_5px_rgba(0,255,85,0.5)]' : 'bg-gray-700'}`}
-                            />
+                            <button key={star} type="button" onClick={() => onChange(star)} className={`flex-1 h-2 rounded-full transition-all ${star <= value ? 'bg-[#00ff55] shadow-[0_0_5px_rgba(0,255,85,0.5)]' : 'bg-gray-700'}`}/>
                         ))}
                     </div>
                 </div>
@@ -515,7 +497,7 @@
                         teamName: myTeam ? myTeam.name : (userProfile?.nickname || user.displayName) + " Team",
                         urgent: false, playersSigned: [], createdBy: user.uid, createdAt: serverTimestamp()
                     });
-                    setPublishData({ type: 'player', format: 'F5', zone: 'La Plata (Casco Urbano)', place: '', time: '', date: '' });
+                    setPublishData({ type: 'player', format: 'F5', zone: 'La Plata (Casco Urbano)', place: '', time: '', date: '', level: 'Picado Medio ⚽', isChallenge: false, stake: '' });
                     setNeededPositions(['Cualquiera']);
                     setShowPublishModal(false);
                     alert("¡Partido publicado exitosamente!");
@@ -532,6 +514,7 @@
                         name: userProfile?.nickname || user.displayName, // Usar apodo
                         position: userProfile?.position || 'Polifuncional', 
                         zone: 'La Plata',
+                        level: playerPostulationLevel, // Nivel seleccionado
                         rating: 0, ratingCount: 0, status: 'Disponible', createdAt: serverTimestamp()
                     });
                     alert("¡Te has postulado correctamente!");
@@ -570,7 +553,7 @@
                 try {
                     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'teams'), {
                         name: newTeamName, captainId: user.uid, 
-                        captainName: userProfile?.nickname || user.displayName, // Usar apodo del capitán
+                        captainName: userProfile?.nickname || user.displayName, 
                         members: [{ uid: user.uid, name: userProfile?.nickname || user.displayName, role: 'captain', status: 'active' }],
                         searchName: newTeamName.toLowerCase(), createdAt: serverTimestamp()
                     });
@@ -602,7 +585,6 @@
 
             const handleSearchUsers = async (e) => {
                 e.preventDefault(); if (!searchQuery.trim()) return;
-                // Búsqueda por Apodo (searchName está en minúsculas)
                 const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), where('searchName', '>=', searchQuery.toLowerCase()), where('searchName', '<=', searchQuery.toLowerCase() + '\uf8ff'));
                 const snaps = await getDocs(q); setSearchResults(snaps.docs.map(d => d.data()));
             };
@@ -614,9 +596,7 @@
 
             const handleShareApp = () => {
                 const text = "¡Sumate a El Capitán! La app para organizar partidos y encontrar equipo en La Plata. Descargala acá:";
-                // --- LINK A DRIVE ---
                 const url = window.location.href; 
-                // const url = "https://drive.google.com/file/d/TU-LINK-DE-DRIVE/view";
                 window.open(`https://wa.me/?text=${encodeURIComponent(text + " " + url)}`, '_blank');
             };
 
@@ -625,11 +605,11 @@
                 await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'invitations'), { 
                     type: 'recruit', 
                     fromUserId: user.uid, 
-                    fromName: userProfile?.nickname || user.displayName, // Quien invita
+                    fromName: userProfile?.nickname || user.displayName, 
                     teamId: myTeam.id, 
                     teamName: myTeam.name, 
                     toUserId: targetUser.uid, 
-                    toPlayerName: targetUser.nickname || targetUser.name, // A quien invito
+                    toPlayerName: targetUser.nickname || targetUser.name, 
                     place: "Fichaje", time: "General", status: 'pending', createdAt: serverTimestamp() 
                 });
                 alert("Solicitud de fichaje enviada internamente.");
@@ -639,7 +619,7 @@
                 await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'invitations'), { 
                     type: 'join_request', 
                     fromUserId: user.uid, 
-                    fromName: userProfile?.nickname || user.displayName, // Quien solicita
+                    fromName: userProfile?.nickname || user.displayName, 
                     teamId: targetTeam.id, 
                     teamName: targetTeam.name, 
                     toUserId: targetTeam.captainId, 
@@ -965,9 +945,22 @@
                                                         <span className={`text-[9px] px-1.5 rounded font-bold uppercase ${m.date === today ? 'bg-red-500 text-white' : 'bg-gray-300 text-gray-700'}`}>
                                                             {m.date === today ? 'HOY' : m.date === tomorrow ? 'MAÑANA' : m.date}
                                                         </span>
+                                                        {m.isChallenge && (
+                                                            <span className="text-[9px] bg-yellow-500 text-black px-1.5 rounded font-black uppercase flex items-center gap-1 border border-yellow-600">
+                                                                <Trophy size={8}/> DESAFÍO
+                                                            </span>
+                                                        )}
                                                     </div>
                                                     <div className="text-xs text-gray-600 flex gap-1 items-center mt-0.5"><MapPin size={10}/> {m.place} | {m.zone}</div>
-                                                    <div className="text-xs font-mono text-green-800 font-bold mt-1">⏰ {m.time}</div>
+                                                    <div className="flex gap-2 items-center mt-1">
+                                                        <div className="text-xs font-mono text-green-800 font-bold">⏰ {m.time}</div>
+                                                        <span className="text-[9px] bg-gray-200 text-gray-600 px-1 rounded border border-gray-300">{m.level}</span>
+                                                    </div>
+                                                    {m.isChallenge && m.stake && (
+                                                        <div className="text-[10px] text-yellow-700 font-bold mt-1 flex items-center gap-1">
+                                                            <Flame size={10}/> Juegan por: {m.stake}
+                                                        </div>
+                                                    )}
                                                 </div>
                                                 <div className="text-right">
                                                     {m.type === 'rival' ? <span className="bg-black text-[#00ff55] px-2 py-1 rounded text-[10px] font-bold border border-[#00ff55]">RIVAL</span> : <div className="flex flex-col items-center"><span className="font-bold text-lg leading-none">{m.missing}</span><span className="text-[9px] uppercase font-bold text-gray-500">Faltan</span></div>}
@@ -990,7 +983,7 @@
                                                     <div className="w-8 h-8 bg-gray-200 rounded flex items-center justify-center font-bold text-gray-700">{p.name[0]}</div>
                                                     <div>
                                                         <div className="font-bold text-xs uppercase flex items-center gap-1">{p.name} <span className="text-[9px] bg-yellow-100 text-yellow-800 px-1 rounded flex items-center">★ {p.rating ? p.rating.toFixed(1) : '-'}</span></div>
-                                                        <div className="text-[10px] text-gray-500">{p.position}</div>
+                                                        <div className="text-[10px] text-gray-500">{p.position} | <span className="text-[9px] bg-gray-100 px-1 rounded">{p.level}</span></div>
                                                     </div>
                                                 </div>
                                                 <div className="flex gap-2 items-center">
@@ -999,7 +992,16 @@
                                                 </div>
                                             </div>
                                         ))}
-                                        <button onClick={handleJoinAsPlayer} className="w-full bg-[#212121] text-[#00ff55] font-bold text-xs py-2 rounded mt-2 uppercase border border-gray-600 hover:border-[#00ff55]">Postularme</button>
+                                        <div className="mt-2 border-t border-gray-300 pt-2">
+                                            <select 
+                                                className="w-full mb-2 text-xs p-1.5 rounded border border-gray-400 bg-white"
+                                                value={playerPostulationLevel}
+                                                onChange={(e) => setPlayerPostulationLevel(e.target.value)}
+                                            >
+                                                {MATCH_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+                                            </select>
+                                            <button onClick={handleJoinAsPlayer} className="w-full bg-[#212121] text-[#00ff55] font-bold text-xs py-2 rounded uppercase border border-gray-600 hover:border-[#00ff55]">Postularme</button>
+                                        </div>
                                     </div>
                                 </div>
                             </>
@@ -1083,9 +1085,32 @@
                                         <div className="space-y-1"><label className="text-gray-400 text-xs font-bold ml-1">Formato</label><select value={publishData.format} onChange={(e) => setPublishData({...publishData, format: e.target.value})} className="w-full bg-black/50 border border-gray-700 text-white rounded py-2 px-2 text-sm outline-none focus:border-[#00ff55]"><option>F5</option><option>F7</option><option>F9</option><option>F11</option></select></div>
                                         <div className="space-y-1"><label className="text-gray-400 text-xs font-bold ml-1">Zona</label><select value={publishData.zone} onChange={(e) => setPublishData({...publishData, zone: e.target.value})} className="w-full bg-black/50 border border-gray-700 text-white rounded py-2 px-2 text-sm outline-none focus:border-[#00ff55]"><ZoneSelectOptions /></select></div>
                                     </div>
+                                    
+                                    {/* SELECCIÓN DE NIVEL */}
+                                    <div className="space-y-1">
+                                        <label className="text-gray-400 text-xs font-bold ml-1">Nivel / Intensidad</label>
+                                        <select value={publishData.level} onChange={(e) => setPublishData({...publishData, level: e.target.value})} className="w-full bg-black/50 border border-gray-700 text-white rounded py-2 px-2 text-sm outline-none focus:border-[#00ff55]">
+                                            {MATCH_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+                                        </select>
+                                    </div>
+
+                                    {/* OPCIONES DE RIVAL (DESAFÍO) */}
+                                    {publishData.type === 'rival' && (
+                                        <div className="bg-gray-800/50 p-2 rounded border border-dashed border-gray-600 space-y-2">
+                                            <div className="flex gap-2">
+                                                <button type="button" onClick={() => setPublishData({...publishData, isChallenge: false})} className={`flex-1 py-1.5 text-xs font-bold rounded border ${!publishData.isChallenge ? 'bg-gray-700 text-white border-gray-500' : 'bg-transparent text-gray-500 border-transparent'}`}>Amistoso</button>
+                                                <button type="button" onClick={() => setPublishData({...publishData, isChallenge: true})} className={`flex-1 py-1.5 text-xs font-bold rounded border ${publishData.isChallenge ? 'bg-yellow-600 text-black border-yellow-500' : 'bg-transparent text-gray-500 border-transparent'}`}>🏆 DESAFÍO</button>
+                                            </div>
+                                            {publishData.isChallenge && (
+                                                <input placeholder="¿Qué se juega? (Ej: La cancha, $1000 c/u)" className="w-full bg-black/50 p-2 rounded text-sm border border-yellow-600 text-yellow-100 placeholder-yellow-700/50" value={publishData.stake} onChange={e=>setPublishData({...publishData, stake:e.target.value})} required/>
+                                            )}
+                                        </div>
+                                    )}
+
                                     <input type="date" className="w-full bg-black/50 p-2 rounded text-sm border border-gray-700" value={publishData.date} onChange={e=>setPublishData({...publishData, date:e.target.value})} required/>
                                     <input placeholder="Cancha" className="w-full bg-black/50 p-2 rounded text-sm border border-gray-700" value={publishData.place} onChange={e=>setPublishData({...publishData, place:e.target.value})} required/>
                                     <input type="time" className="w-full bg-black/50 p-2 rounded text-sm border border-gray-700" value={publishData.time} onChange={e=>setPublishData({...publishData, time:e.target.value})} required/>
+                                    
                                     {publishData.type === 'player' && (
                                         <div className="space-y-2 p-3 bg-gray-800/50 rounded border border-dashed border-gray-600">
                                             <label className="text-gray-400 text-xs font-bold">Posiciones Necesarias</label>
