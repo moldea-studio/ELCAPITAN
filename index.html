@@ -82,15 +82,16 @@
         } from 'https://esm.sh/lucide-react@0.294.0';
         
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { initializeAppCheck, ReCaptchaV3Provider } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app-check.js';
         import { 
             getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged,
             signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile,
             signInAnonymously, signInWithCustomToken
         } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
         import { 
-            getFirestore, collection, query, onSnapshot, doc, updateDoc, increment, 
-            arrayUnion, arrayRemove, addDoc, serverTimestamp, deleteDoc, where, 
-            orderBy, getDoc, setDoc, getDocs, Timestamp
+           getFirestore, collection, query, onSnapshot, doc, updateDoc, increment, 
+           arrayUnion, arrayRemove, addDoc, serverTimestamp, deleteDoc, where, 
+           orderBy, getDoc, setDoc, getDocs, Timestamp
         } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
         import { getStorage, ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js';
 
@@ -173,13 +174,20 @@
             const [storage, setStorage] = useState(null);
 
             useEffect(() => {
-                try {
-                    const app = initializeApp(getFirebaseConfig());
-                    setAuth(getAuth(app));
-                    setDb(getFirestore(app));
-                    setStorage(getStorage(app));
-                } catch(e) { console.error(e); }
-            }, []);
+                 try {
+            const app = initializeApp(getFirebaseConfig());
+        
+            // 🔒 App Check con reCAPTCHA
+            const appCheck = initializeAppCheck(app, {
+                provider: new ReCaptchaV3Provider('6LdxFE4sAAAAAIcAqm8pq_mfpw1WRzVRJtHiOkP4'),
+                isTokenAutoRefreshEnabled: true
+        });
+        
+        setAuth(getAuth(app));
+        setDb(getFirestore(app));
+        setStorage(getStorage(app));
+    } catch(e) { console.error(e); }
+}, []);
 
             // Data States
             const [matches, setMatches] = useState([]);
