@@ -10,43 +10,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="El Enganche">
-    
-    <!-- Placeholder para el ícono generado dinámicamente -->
-    <link rel="apple-touch-icon" id="apple-icon">
-    <link rel="icon" type="image/png" id="favicon">
-    <link rel="manifest" id="manifest-placeholder">
-
-    <!-- GENERADOR DE ÍCONO AUTOMÁTICO -->
-    <script>
-        (function() {
-            const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-                <rect width="512" height="512" fill="#111827"/>
-                <circle cx="256" cy="256" r="220" fill="#00ff55"/>
-                <circle cx="256" cy="256" r="180" fill="#111827"/>
-                <circle cx="256" cy="256" r="140" fill="#111827" stroke="#00ff55" stroke-width="20"/>
-                <path d="M256 180 L300 240 L280 300 H232 L212 240 Z" fill="#00ff55"/>
-                <circle cx="256" cy="256" r="30" fill="#111827"/>
-            </svg>`;
-            const iconUrl = "data:image/svg+xml;base64," + btoa(iconSvg);
-            document.getElementById('apple-icon').href = iconUrl;
-            document.getElementById('favicon').href = iconUrl;
-            const manifest = {
-                "name": "El Enganche",
-                "short_name": "El Enganche",
-                "start_url": ".",
-                "display": "standalone",
-                "background_color": "#111827",
-                "theme_color": "#00ff55",
-                "orientation": "portrait",
-                "icons": [
-                    { "src": iconUrl, "sizes": "192x192", "type": "image/svg+xml" },
-                    { "src": iconUrl, "sizes": "512x512", "type": "image/svg+xml" }
-                ]
-            };
-            const blob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
-            document.getElementById('manifest-placeholder').setAttribute('href', URL.createObjectURL(blob));
-        })();
-    </script>
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/431/431238.png">
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -56,7 +20,7 @@
 
     <!-- Estilos base -->
     <style>
-        body { background-color: #111827; color: #e5e7eb; font-family: sans-serif; padding-bottom: 70px; }
+        body { background-color: #111827; color: #e5e7eb; font-family: sans-serif; padding-bottom: 80px; }
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #1a1a1a; }
         ::-webkit-scrollbar-thumb { background: #00ff55; border-radius: 4px; }
@@ -86,7 +50,7 @@
             Link as LinkIcon, User, LogOut, Mail, Lock, Trash2, Ban, Trophy, 
             Activity, ArrowLeft, HelpCircle, FileText, Lock as LockIcon, Bell, 
             CheckCircle, XCircle, Send, Crown, UserPlus, Share2, Edit2, Save, MinusCircle,
-            Home, Zap, ClipboardList, AlertTriangle, Download, Loader2
+            Home, Zap, ClipboardList, AlertTriangle, Download, UserCheck, UserX
         } from 'https://esm.sh/lucide-react@0.294.0';
         
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
@@ -154,9 +118,7 @@
         ];
 
         const App = () => {
-            const [view, setView] = useState('landing');
-            const [isMenuOpen, setIsMenuOpen] = useState(false);
-            const [isProfileExpanded, setIsProfileExpanded] = useState(false);
+            const [view, setView] = useState('landing'); // Vistas: landing, app, profile, team
             const [showNotifications, setShowNotifications] = useState(false);
             const [formatFilter, setFormatFilter] = useState('Todos');
             const [zoneFilter, setZoneFilter] = useState('Todas');
@@ -169,7 +131,7 @@
             const [invitations, setInvitations] = useState([]);
             const [myTeam, setMyTeam] = useState(null);
             const [loading, setLoading] = useState(true);
-            const [submitting, setSubmitting] = useState(false); // Estado para feedback visual de carga
+            const [submitting, setSubmitting] = useState(false);
             
             // Modales
             const [showLoginModal, setShowLoginModal] = useState(false);
@@ -284,12 +246,12 @@
                 for (const p of INITIAL_PLAYERS) { await addDoc(playersRef, { ...p, createdAt: serverTimestamp() }); }
             };
 
-            // --- ACTIONS & ROBUST HANDLERS ---
+            // --- HANDLERS ---
             const handleGoogleLogin = async () => {
                 try { await signInWithPopup(auth, new GoogleAuthProvider()); setView('app'); }
                 catch (e) { alert("Error al iniciar sesión: " + e.message); }
             };
-            const handleLogout = async () => { await signOut(auth); setView('landing'); setIsMenuOpen(false); };
+            const handleLogout = async () => { await signOut(auth); setView('landing'); };
             const handleGuest = () => setView('app');
             
             const handleInstallClick = async () => {
@@ -310,84 +272,6 @@
                 } catch(err) { alert("Error al unirse: " + err.message); }
             };
             
-            const handlePublishMatch = async (e) => {
-                e.preventDefault();
-                if (!user) return;
-                setSubmitting(true);
-                
-                try {
-                    const isRival = publishData.type === 'rival';
-                    const missingCount = isRival ? 0 : neededPositions.length;
-                    const positionString = isRival ? 'Equipo Completo' : neededPositions.join(', ');
-
-                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'matches'), {
-                        ...publishData,
-                        missing: missingCount,
-                        position: positionString, 
-                        teamName: myTeam ? myTeam.name : (user.displayName + " Team"),
-                        urgent: false, playersSigned: [], createdBy: user.uid, createdAt: serverTimestamp()
-                    });
-                    // Reset Form
-                    setPublishData({ type: 'player', format: 'F5', zone: 'La Plata (Casco Urbano)', place: '', time: '' });
-                    setNeededPositions(['Cualquiera']);
-                    setShowPublishModal(false);
-                    alert("¡Partido publicado exitosamente!");
-                } catch(err) {
-                    alert("Error al publicar: " + err.message);
-                } finally {
-                    setSubmitting(false);
-                }
-            };
-
-            const handleJoinAsPlayer = async () => {
-                if (!user) { setShowLoginModal(true); return; }
-                if (players.some(p => p.uid === user.uid)) return alert("Ya estás postulado como agente libre.");
-                setSubmitting(true);
-                try {
-                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'players'), {
-                        uid: user.uid, name: user.displayName, position: userProfile?.position || 'Polifuncional', zone: 'La Plata',
-                        rating: 0, status: 'Disponible', createdAt: serverTimestamp()
-                    });
-                    alert("¡Te has postulado correctamente!");
-                } catch(err) { alert("Error: " + err.message); } 
-                finally { setSubmitting(false); }
-            };
-
-            const handleCreateTeam = async (e) => {
-                e.preventDefault();
-                if (!user || !newTeamName) return;
-                setSubmitting(true);
-                try {
-                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'teams'), {
-                        name: newTeamName, captainId: user.uid, captainName: user.displayName,
-                        members: [{ uid: user.uid, name: user.displayName, role: 'captain', status: 'active' }],
-                        searchName: newTeamName.toLowerCase(), createdAt: serverTimestamp()
-                    });
-                    setNewTeamName(''); // Reset
-                    setShowCreateTeamModal(false);
-                    alert("¡Equipo creado! Ahora eres el capitán.");
-                } catch(err) { alert("Error: " + err.message); }
-                finally { setSubmitting(false); }
-            };
-
-            const sendInvitation = async (e) => {
-                e.preventDefault();
-                if (!user) return;
-                setSubmitting(true);
-                try {
-                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'invitations'), {
-                        type: 'recruit', fromUserId: user.uid, fromName: user.displayName, teamId: myTeam.id, teamName: myTeam.name,
-                        toUserId: targetPlayer.uid, toPlayerName: targetPlayer.name, ...inviteData, status: 'pending',
-                        createdAt: serverTimestamp()
-                    });
-                    setInviteData({ place: '', time: '' }); // Reset
-                    setShowInviteModal(false);
-                    alert("¡Invitación enviada!");
-                } catch(err) { alert("Error: " + err.message); }
-                finally { setSubmitting(false); }
-            };
-
-            // Other Handlers (Simplified for brevity as they are mainly updates/reads)
             const handleClickHeaderButton = () => {
                 if (!user) return setShowLoginModal(true);
                 if (!myTeam) return setShowCreateTeamModal(true);
@@ -401,6 +285,39 @@
             };
             const handleSlotChange = (index, value) => {
                 const newSlots = [...neededPositions]; newSlots[index] = value; setNeededPositions(newSlots);
+            };
+
+            const handlePublishMatch = async (e) => {
+                e.preventDefault();
+                if (!user) return;
+                setSubmitting(true);
+                try {
+                    const isRival = publishData.type === 'rival';
+                    const missingCount = isRival ? 0 : neededPositions.length;
+                    const positionString = isRival ? 'Equipo Completo' : neededPositions.join(', ');
+                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'matches'), {
+                        ...publishData, missing: missingCount, position: positionString, 
+                        teamName: myTeam ? myTeam.name : (user.displayName + " Team"),
+                        urgent: false, playersSigned: [], createdBy: user.uid, createdAt: serverTimestamp()
+                    });
+                    setPublishData({ type: 'player', format: 'F5', zone: 'La Plata (Casco Urbano)', place: '', time: '' });
+                    setNeededPositions(['Cualquiera']);
+                    setShowPublishModal(false);
+                    alert("¡Partido publicado exitosamente!");
+                } catch(err) { alert("Error: " + err.message); } finally { setSubmitting(false); }
+            };
+
+            const handleJoinAsPlayer = async () => {
+                if (!user) { setShowLoginModal(true); return; }
+                if (players.some(p => p.uid === user.uid)) return alert("Ya estás postulado como agente libre.");
+                setSubmitting(true);
+                try {
+                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'players'), {
+                        uid: user.uid, name: user.displayName, position: userProfile?.position || 'Polifuncional', zone: 'La Plata',
+                        rating: 0, status: 'Disponible', createdAt: serverTimestamp()
+                    });
+                    alert("¡Te has postulado correctamente!");
+                } catch(err) { alert("Error: " + err.message); } finally { setSubmitting(false); }
             };
 
             const handleUpdatePosition = async (newPos) => {
@@ -428,6 +345,20 @@
                     askConfirmation("¿Vas a eliminar este partido permanentemente?", async () => await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'matches', idMatch)));
                 }
             };
+            const handleCreateTeam = async (e) => {
+                e.preventDefault();
+                if (!user || !newTeamName) return;
+                setSubmitting(true);
+                try {
+                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'teams'), {
+                        name: newTeamName, captainId: user.uid, captainName: user.displayName,
+                        members: [{ uid: user.uid, name: user.displayName, role: 'captain', status: 'active' }],
+                        searchName: newTeamName.toLowerCase(), createdAt: serverTimestamp()
+                    });
+                    setNewTeamName(''); setShowCreateTeamModal(false); setView('team');
+                    alert("¡Equipo creado! Ahora eres el capitán.");
+                } catch(err) { alert("Error: " + err.message); } finally { setSubmitting(false); }
+            };
             const handleCreateDemoTeam = async () => {
                 if (!user) return;
                 const demoPlayers = [{ uid: 'd1', name: 'Esteban', role: 'player', status: 'active' }, { uid: 'd2', name: 'Pedro', role: 'player', status: 'active' }];
@@ -438,12 +369,20 @@
                 });
                 alert("Equipo Demo Generado!");
             };
+            
+            // MODIFIED: Allow self-update
             const handleToggleMemberStatus = async (memberUid, currentStatus) => {
-                if (!isCaptain || !myTeam || !user) return;
-                const newStatus = currentStatus === 'active' ? 'injured' : 'active';
-                const updatedMembers = myTeam.members.map(m => m.uid === memberUid ? { ...m, status: newStatus } : m);
-                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'teams', myTeam.id), { members: updatedMembers });
+                if (!myTeam || !user) return;
+                // Allow captain OR user themselves
+                if (isCaptain || user.uid === memberUid) {
+                    const newStatus = currentStatus === 'active' ? 'injured' : 'active';
+                    const updatedMembers = myTeam.members.map(m => m.uid === memberUid ? { ...m, status: newStatus } : m);
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'teams', myTeam.id), { members: updatedMembers });
+                } else {
+                    alert("Solo el capitán o el propio jugador pueden cambiar este estado.");
+                }
             };
+
             const handleSearchUsers = async (e) => {
                 e.preventDefault(); if (!searchQuery.trim()) return;
                 const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), where('searchName', '>=', searchQuery.toLowerCase()), where('searchName', '<=', searchQuery.toLowerCase() + '\uf8ff'));
@@ -520,7 +459,6 @@
                     <header className="bg-gradient-to-r from-[#003300] to-[#004d26] border-b-4 border-[#00ff55] sticky top-0 z-50 shadow-xl">
                         <div className="max-w-6xl mx-auto px-3 h-16 flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-1 hover:bg-white/10 rounded"><Menu size={24} className="text-[#00ff55]"/></button>
                                 <div className="font-black italic text-2xl tracking-tighter cursor-pointer flex items-center" onClick={() => setView('landing')}>EL <span className="text-[#00ff55]">ENGANCHE</span> <LinkIcon size={16} className="text-[#00ff55] -rotate-45 ml-1"/></div>
                             </div>
                             <div className="flex items-center gap-3">
@@ -534,44 +472,10 @@
                                             <Bell size={20} className={pendingInvitations.length > 0 ? "text-[#00ff55] animate-pulse" : "text-gray-300"}/>
                                             {pendingInvitations.length > 0 && <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>}
                                         </button>
-                                        <div className="hidden xs:flex items-center gap-2 cursor-pointer" onClick={() => setView('profile')}>
-                                            <div className="text-right leading-none"><span className="text-[10px] text-gray-400">Jugador</span><div className="font-bold text-[#00ff55] text-xs">{user.displayName?.split(' ')[0]}</div></div>
-                                            <div className="w-8 h-8 rounded-full border border-gray-600 bg-gray-800 overflow-hidden">{user.photoURL ? <img src={user.photoURL} className="w-full h-full object-cover"/> : <User className="p-1 text-white"/>}</div>
-                                        </div>
                                     </div>
                                 ) : (<button onClick={() => setShowLoginModal(true)} className="text-xs font-bold text-[#00ff55] flex items-center gap-1"><User size={14}/> INGRESAR</button>)}
                             </div>
                         </div>
-                        {isMenuOpen && (
-                            <>
-                                <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setIsMenuOpen(false)}></div>
-                                <div className="absolute top-full left-0 w-full bg-[#1a1a1a] border-t border-gray-700 shadow-2xl z-50 animate-in slide-in-from-top-2">
-                                    {user ? (
-                                        <div className="flex flex-col">
-                                            <div className="p-4 border-b border-gray-800 bg-gray-900 cursor-pointer" onClick={() => setView('profile')}>
-                                                <div className="flex items-center justify-between">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-10 h-10 rounded-full border-2 border-[#00ff55] overflow-hidden">{user.photoURL ? <img src={user.photoURL} className="w-full h-full object-cover"/> : <User className="p-2 text-white"/>}</div>
-                                                        <div><div className="text-white font-black">{user.displayName}</div><div className="text-xs text-[#00ff55]">En línea</div></div>
-                                                    </div>
-                                                    {isProfileExpanded ? <ChevronUp className="text-gray-500"/> : <ChevronDown className="text-gray-500"/>}
-                                                </div>
-                                                {isProfileExpanded && (
-                                                    <div className="mt-4 space-y-3 pl-2 border-l-2 border-[#00ff55]/30">
-                                                        <div className="text-xs text-gray-400 uppercase font-bold">Mi Actividad</div>
-                                                        <div className="text-sm text-white flex items-center gap-2"><Calendar size={14} className="text-[#00ff55]"/> {myMatches.length} Partidos</div>
-                                                        <div className="text-sm text-white flex items-center gap-2"><Users size={14} className="text-[#00ff55]"/> {myPlayerProfile ? 'Ficha Activa' : 'Sin Ficha'}</div>
-                                                        <button onClick={() => { setView('profile'); setIsMenuOpen(false); }} className="text-[#00ff55] text-xs font-bold hover:underline block py-1">Ver Perfil Completo &rarr;</button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                            {!myTeam && <button onClick={() => { setShowCreateTeamModal(true); setIsMenuOpen(false); }} className="w-full py-4 text-white font-bold text-xs uppercase hover:bg-gray-800 flex items-center justify-center gap-2 border-b border-gray-800"><Shield size={16}/> Crear Equipo</button>}
-                                            <button onClick={handleLogout} className="w-full py-4 text-red-500 font-bold text-xs uppercase bg-black/20 hover:bg-red-900/20">Cerrar Sesión</button>
-                                        </div>
-                                    ) : (<div className="p-4"><button onClick={() => setShowLoginModal(true)} className="w-full bg-[#00ff55] text-black font-bold py-3 rounded uppercase">Iniciar Sesión</button></div>)}
-                                </div>
-                            </>
-                        )}
                         {showNotifications && (
                              <div className="absolute top-16 right-2 w-72 bg-[#1a1a1a] border border-gray-700 rounded-lg shadow-2xl z-[60]">
                                  <div className="p-3 bg-gray-900 border-b border-gray-800 font-bold text-xs text-gray-400 uppercase tracking-wider">Invitaciones ({pendingInvitations.length})</div>
@@ -592,13 +496,56 @@
                     <div className="bg-black py-2 px-3 border-b border-gray-800 text-xs flex items-center text-gray-400 overflow-hidden whitespace-nowrap"><span className="text-[#00ff55] mr-2 animate-pulse">●</span> <span className="font-bold text-gray-200 mr-1">MERCADO:</span> Mostrando {filteredMatches.length} partidos y {players.length} agentes libres en zona La Plata.</div>
 
                     <main className="flex-1 max-w-6xl mx-auto w-full p-2 sm:p-4 grid grid-cols-1 lg:grid-cols-12 gap-6">
-                        {view === 'profile' && user ? (
+                        {/* VISTA: EQUIPO (Exclusiva y separada) */}
+                        {view === 'team' && user ? (
+                            <div className="lg:col-span-12 space-y-4">
+                                <div className="bg-[#1a1a1a] rounded-lg border border-gray-800 p-4">
+                                    <div className="flex justify-between items-center mb-4"><h3 className="font-bold text-white flex items-center gap-2"><Shield size={18} className="text-[#00ff55]"/> Gestión de Equipo</h3>{isCaptain && (<button onClick={() => setShowScoutModal(true)} className="bg-[#263238] hover:bg-[#00ff55] hover:text-black text-[#00ff55] border border-[#00ff55] text-xs font-bold px-3 py-1.5 rounded flex items-center gap-2 transition-colors"><UserPlus size={14}/> Fichar Jugador</button>)}</div>
+                                    {myTeam ? (
+                                        <div>
+                                            <div className="text-xl font-black italic mb-4 text-white border-b border-gray-700 pb-2">{myTeam.name} <span className="text-xs text-gray-500 font-normal ml-2">Capitán: {myTeam.captainName}</span></div>
+                                            <div className="space-y-2">
+                                                {myTeam.members?.map(m => (
+                                                    <div key={m.uid} className={`flex justify-between items-center p-3 rounded border ${m.status === 'injured' ? 'border-red-900/50 bg-red-900/10' : 'border-gray-800 bg-black/30'}`}>
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center font-bold text-white text-xs">{m.name.charAt(0)}</div>
+                                                            <div>
+                                                                <div className="text-gray-200 text-sm font-bold flex items-center gap-2">{m.name} {m.role === 'captain' && <Crown size={12} className="text-yellow-500"/>}</div>
+                                                                <div className={`text-xs ${m.status === 'injured' ? 'text-red-500 font-bold uppercase' : 'text-[#00ff55]'}`}>{m.status === 'injured' ? 'Baja Temporal' : 'Activo'}</div>
+                                                            </div>
+                                                        </div>
+                                                        {/* Botón visible para el Capitán O para el propio usuario */}
+                                                        {(isCaptain || user.uid === m.uid) && (
+                                                            <button 
+                                                                onClick={() => handleToggleMemberStatus(m.uid, m.status)} 
+                                                                className={`flex items-center gap-1 px-3 py-1.5 rounded text-[10px] font-bold border transition-colors ${m.status === 'active' ? 'border-red-900 text-red-500 hover:bg-red-900/20' : 'border-green-900 text-green-500 hover:bg-green-900/20'}`}
+                                                            >
+                                                                {m.status === 'active' ? <><UserX size={12}/> Marcar Baja</> : <><UserCheck size={12}/> Estoy Listo</>}
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="text-center py-12">
+                                            <Shield size={48} className="mx-auto text-gray-700 mb-4"/>
+                                            <p className="text-gray-400 text-sm mb-4">Aún no tienes equipo.</p>
+                                            <div className="flex gap-3 justify-center">
+                                                <button onClick={() => setShowCreateTeamModal(true)} className="bg-[#00ff55] text-black font-bold px-4 py-2 rounded text-xs inline-flex items-center gap-2 hover:bg-white"><PlusCircle size={14}/> Crear Equipo</button>
+                                                <button onClick={() => setShowTeamSearchModal(true)} className="bg-gray-700 text-white font-bold px-4 py-2 rounded text-xs inline-flex items-center gap-2 hover:bg-gray-600"><Search size={14}/> Buscar Equipo</button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ) : view === 'profile' && user ? (
+                            /* VISTA: PERFIL (Solo datos personales) */
                             <div className="lg:col-span-12 space-y-4">
                                 <div className="bg-[#1a1a1a] p-6 rounded-lg border border-gray-800 flex flex-col sm:flex-row items-center gap-6 relative">
                                     <div className="w-24 h-24 rounded-full border-4 border-[#00ff55] overflow-hidden bg-black">{user.photoURL ? <img src={user.photoURL} className="w-full h-full object-cover"/> : <User className="w-full h-full p-4 text-gray-500"/>}</div>
                                     <div className="text-center sm:text-left flex-1">
                                         <h1 className="text-3xl font-black italic">{user.displayName}</h1>
-                                        {myTeam && myTeam.captainId === user.uid && <div className="text-[#00ff55] font-bold text-sm uppercase flex items-center gap-1 justify-center sm:justify-start"><Crown size={14}/> Capitán de {myTeam.name}</div>}
                                         <p className="text-gray-400 text-sm">{user.email}</p>
                                         <div className="flex gap-3 justify-center sm:justify-start mt-3 items-center">
                                             {isEditingPosition ? (
@@ -606,7 +553,6 @@
                                             ) : (
                                                 <div className="flex gap-2 items-center bg-gray-800 px-3 py-1 rounded-full text-xs text-white cursor-pointer hover:bg-gray-700" onClick={() => setIsEditingPosition(true)}>{userProfile?.position || 'Polifuncional'} <Edit2 size={10} className="text-gray-400"/></div>
                                             )}
-                                            {myTeam && <div className="bg-[#00ff55]/10 px-3 py-1 rounded border border-[#00ff55]/30 text-[#00ff55] font-bold flex items-center gap-2"><Shield size={14}/> {myTeam.name}</div>}
                                         </div>
                                         {isAdmin && <button onClick={handleCreateDemoTeam} className="mt-4 bg-yellow-600/50 text-white text-xs px-2 py-1 rounded border border-yellow-500 flex items-center gap-1 mx-auto sm:mx-0"><Zap size={12}/> Generar Equipo Demo</button>}
                                     </div>
@@ -614,24 +560,6 @@
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="bg-[#1a1a1a] p-4 rounded-lg border border-gray-800"><div className="flex items-center gap-2 text-gray-400 text-xs font-bold uppercase mb-1"><Calendar size={14} className="text-[#00ff55]"/> Organizados</div><div className="text-3xl font-black text-white">{myOrganizedMatches.length}</div></div>
                                     <div className="bg-[#1a1a1a] p-4 rounded-lg border border-gray-800"><div className="flex items-center gap-2 text-gray-400 text-xs font-bold uppercase mb-1"><Star size={14} className="text-yellow-500"/> Calificación</div><div className="text-3xl font-black text-white">{userRating.toFixed(1)}</div></div>
-                                </div>
-                                <div className="bg-[#1a1a1a] rounded-lg border border-gray-800 p-4">
-                                    <div className="flex justify-between items-center mb-4"><h3 className="font-bold text-white flex items-center gap-2"><Shield size={18} className="text-[#00ff55]"/> Mi Equipo</h3>{isCaptain && (<button onClick={() => setShowScoutModal(true)} className="bg-[#263238] hover:bg-[#00ff55] hover:text-black text-[#00ff55] border border-[#00ff55] text-xs font-bold px-3 py-1.5 rounded flex items-center gap-2 transition-colors"><UserPlus size={14}/> Fichar Jugador</button>)}</div>
-                                    {myTeam ? (
-                                        <div>
-                                            <div className="text-xl font-black italic mb-2">{myTeam.name}</div>
-                                            <div className="space-y-1">
-                                                {myTeam.members?.map(m => (
-                                                    <div key={m.uid} className={`flex justify-between p-2 rounded border border-gray-800 ${m.status === 'injured' ? 'bg-red-900/10' : 'bg-black/30'}`}>
-                                                        <div className="text-gray-300 flex items-center gap-2">{m.name} {m.role === 'captain' && <Crown size={12} className="text-yellow-500"/>}</div>
-                                                        {isCaptain && m.uid !== user.uid && (<button onClick={() => handleToggleMemberStatus(m.uid, m.status)} className="text-gray-500 hover:text-white"><Activity size={16}/></button>)}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="text-center py-4"><p className="text-gray-500 text-sm mb-3">No tienes equipo.</p><div className="flex gap-2 justify-center"><button onClick={() => setShowCreateTeamModal(true)} className="bg-[#00ff55] text-black font-bold px-4 py-2 rounded text-xs inline-flex items-center gap-2"><PlusCircle size={14}/> Crear Equipo</button><button onClick={() => setShowTeamSearchModal(true)} className="bg-gray-700 text-white font-bold px-4 py-2 rounded text-xs inline-flex items-center gap-2 hover:bg-gray-600"><Search size={14}/> Buscar Equipo</button></div></div>
-                                    )}
                                 </div>
                                 {myOrganizedMatches.length > 0 && (
                                     <div className="bg-[#1a1a1a] rounded-lg border border-gray-800 overflow-hidden">
@@ -641,9 +569,11 @@
                                         ))}
                                     </div>
                                 )}
+                                <button onClick={handleLogout} className="w-full py-4 text-red-500 font-bold text-xs uppercase bg-black/20 hover:bg-red-900/20 border border-red-900/30 rounded">Cerrar Sesión</button>
                             </div>
                         ) : (
                             <>
+                                {/* Partidos */}
                                 <div className="lg:col-span-8 space-y-4">
                                     <div className="bg-gradient-to-r from-[#1b4d2e] to-[#2e7d32] px-4 py-3 rounded-t-lg border-b-2 border-[#4caf50] flex flex-wrap gap-2 justify-between items-center text-white">
                                         <h2 className="font-bold flex items-center gap-2"><Calendar size={20} className="text-[#00ff55]"/> PARTIDOS <span className="text-sm text-green-200">({filteredMatches.length})</span></h2>
@@ -838,8 +768,8 @@
                         <div className="fixed bottom-0 left-0 w-full bg-[#111] border-t border-gray-800 flex justify-around items-center h-16 z-50">
                             <button onClick={() => setView('app')} className={`flex flex-col items-center gap-1 ${view === 'app' ? 'text-[#00ff55]' : 'text-gray-500'}`}><Home size={20}/> <span className="text-[10px]">Inicio</span></button>
                             <button onClick={handleClickHeaderButton} className="flex flex-col items-center gap-1 text-gray-500 hover:text-white"><PlusCircle size={20}/> <span className="text-[10px]">{!myTeam ? "Crear" : "Publicar"}</span></button>
-                            <button onClick={() => setView('profile')} className={`flex flex-col items-center gap-1 ${view === 'profile' ? 'text-[#00ff55]' : 'text-gray-500'}`}><Shield size={20}/> <span className="text-[10px]">Mi Equipo</span></button>
-                            <button onClick={() => setView('profile')} className="flex flex-col items-center gap-1 text-gray-500"><div className="w-5 h-5 rounded-full border border-current overflow-hidden">{user.photoURL ? <img src={user.photoURL} className="w-full h-full object-cover"/> : <User size={12} className="w-full h-full p-0.5"/>}</div><span className="text-[10px]">Perfil</span></button>
+                            <button onClick={() => setView('team')} className={`flex flex-col items-center gap-1 ${view === 'team' ? 'text-[#00ff55]' : 'text-gray-500'}`}><Shield size={20}/> <span className="text-[10px]">Mi Equipo</span></button>
+                            <button onClick={() => setView('profile')} className={`flex flex-col items-center gap-1 ${view === 'profile' ? 'text-[#00ff55]' : 'text-gray-500'}`}><div className="w-5 h-5 rounded-full border border-current overflow-hidden">{user.photoURL ? <img src={user.photoURL} className="w-full h-full object-cover"/> : <User size={12} className="w-full h-full p-0.5"/>}</div><span className="text-[10px]">Perfil</span></button>
                         </div>
                     )}
 
