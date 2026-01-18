@@ -177,14 +177,11 @@
                  try {
             const app = initializeApp(getFirebaseConfig());
         
-            // 🔒 App Check con reCAPTCHA (COMENTADO PARA EVITAR ERRORES EN PREVIEW)
-            // DESCOMENTAR ESTO PARA PRODUCCIÓN
-            /*
+            // 🔒 App Check con reCAPTCHA (ACTIVADO PARA PRODUCCIÓN)
             const appCheck = initializeAppCheck(app, {
                 provider: new ReCaptchaV3Provider('6LdxFE4sAAAAAIcAqm8pq_mfpw1WRzVRJtHiOkP4'),
                 isTokenAutoRefreshEnabled: true
             });
-            */
         
             setAuth(getAuth(app));
             setDb(getFirestore(app));
@@ -246,7 +243,7 @@
             // Computed
             const isAdmin = user && ADMIN_EMAILS.includes(user.email);
             const myOrganizedMatches = user ? matches.filter(m => m.createdBy === user.uid) : [];
-            const matchesJoined = user ? matches.filter(m => m.playersSigned && m.playersSigned.includes(user.uid)).length : 0; // NUEVO: Contador de partidos jugados
+            const matchesJoined = user ? matches.filter(m => m.playersSigned && m.playersSigned.includes(user.uid)).length : 0; 
             const userRating = userProfile?.rating || 0;
             const userRatingCount = userProfile?.ratingCount || 0;
             const pendingInvitations = invitations.filter(inv => inv.status === 'pending');
@@ -337,6 +334,7 @@
             };
 
             // --- HELPERS ---
+            // Compresión de imagen para logos (Máx 200px)
             const compressImage = async (file) => {
                 return new Promise((resolve) => {
                     const reader = new FileReader();
@@ -346,13 +344,13 @@
                         img.src = e.target.result;
                         img.onload = () => {
                             const canvas = document.createElement('canvas');
-                            const MAX = 300;
+                            const MAX = 200; // Redimensionar a 200px para ahorrar espacio
                             let w = img.width, h = img.height;
                             if(w>h) { if(w>MAX) { h*=MAX/w; w=MAX; } } else { if(h>MAX) { w*=MAX/h; h=MAX; } }
                             canvas.width = w; canvas.height = h;
                             const ctx = canvas.getContext('2d');
                             ctx.drawImage(img, 0, 0, w, h);
-                            canvas.toBlob(resolve, 'image/jpeg', 0.7);
+                            canvas.toBlob(resolve, 'image/jpeg', 0.7); // Calidad 0.7
                         }
                     }
                 });
@@ -490,6 +488,13 @@
             const handleCreateTeam = async (e) => {
                 e.preventDefault();
                 if (!user || !newTeamName) return;
+                
+                // VALIDACIÓN DE TAMAÑO (10MB)
+                if (teamLogoFile && teamLogoFile.size > 10 * 1024 * 1024) {
+                    alert("El logo es muy pesado (Máx 10MB).");
+                    return;
+                }
+
                 setSubmitting(true);
                 
                 try {
