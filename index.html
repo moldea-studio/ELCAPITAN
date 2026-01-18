@@ -857,7 +857,12 @@
                         {view === 'profile' && (
                             <div className="lg:col-span-12">
                                 <div className="bg-[#1a1a1a] p-6 rounded flex items-center gap-4">
-                                    <div className="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center text-4xl">👤</div>
+                                    {/* Muestra la foto de Google si existe, o el icono por defecto */}
+                                    {user?.photoURL ? (
+                                        <img src={user.photoURL} alt="Perfil" className="w-20 h-20 rounded-full object-cover border-2 border-[#00ff55]" />
+                                    ) : (
+                                        <div className="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center text-4xl">👤</div>
+                                    )}
                                     <div>
                                         <div className="text-2xl font-black text-white italic">{userProfile?.nickname || user?.displayName}</div>
                                         <div className="text-[#00ff55] font-bold">★ {userRating.toFixed(1)} <span className="text-gray-500 text-xs">({userRatingCount})</span></div>
