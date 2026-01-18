@@ -748,17 +748,28 @@
                                     <div className="bg-[#212121] text-white px-4 py-3 rounded-t-lg border-t-4 border-[#00ff55] font-bold text-sm flex items-center gap-2"><Users size={16} className="text-[#00ff55]"/> AGENTES LIBRES</div>
                                     <div className="bg-[#dce6dc] border border-gray-600 rounded-b-lg shadow-md p-2 space-y-2">
                                         {players.map(p => {
-                                            // Lógica de color para la posición
-                                            const isGK = p.position.toLowerCase().includes('arquero');
-                                            const posLetter = p.position.charAt(0).toUpperCase();
-                                            const posColor = isGK ? 'bg-orange-500' : 'bg-green-600';
+                                            // Lógica de color y abreviatura exacta
+                                            const posLower = p.position.toLowerCase();
+                                            let posAbbr = "POL"; // Por defecto Polifuncional
+                                            let posColor = "bg-green-600";
+
+                                            if (posLower.includes('arquero')) {
+                                                posAbbr = "ARQ";
+                                                posColor = "bg-orange-500";
+                                            } else if (posLower.includes('defensor')) {
+                                                posAbbr = "DEF";
+                                            } else if (posLower.includes('medio') || posLower.includes('volante')) {
+                                                posAbbr = "VOL";
+                                            } else if (posLower.includes('delantero') || posLower.includes('9')) {
+                                                posAbbr = "DEL";
+                                            }
 
                                             return (
                                                 <div key={p.id} className="bg-white p-2 rounded shadow-sm flex justify-between items-center border border-gray-300">
                                                     <div className="flex items-center">
-                                                        {/* Cuadrado de Posición */}
-                                                        <div className={`w-8 h-8 ${posColor} flex items-center justify-center font-bold text-white rounded mr-3 shadow-sm`}>
-                                                            {posLetter}
+                                                        {/* Cuadrado de Posición con Texto Ajustado */}
+                                                        <div className={`w-8 h-8 ${posColor} flex items-center justify-center font-bold text-white rounded mr-3 shadow-sm text-[10px]`}>
+                                                            {posAbbr}
                                                         </div>
                                                         <div>
                                                             {/* Nombre en Gris */}
