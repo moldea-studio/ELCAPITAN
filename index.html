@@ -943,7 +943,8 @@
                                             <div>
                                                 <h4 className="text-[#00ff55] text-xs font-black uppercase mb-2 border-b border-gray-800 pb-1">Organizados por mí ({myOrganizedMatches.length})</h4>
                                                 {myOrganizedMatches.length > 0 ? (
-                                                    <div className="space-y-2 max-h-40 overflow-y-auto no-scrollbar">
+                                                    // FIX: max-h-48 para limitar altura y quitada la clase no-scrollbar para ver la barra
+                                                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                                                         {myOrganizedMatches.map(m => (
                                                             <div key={m.id} className="text-xs text-gray-300 bg-gray-900 p-2 rounded flex justify-between items-center border-l-2 border-[#00ff55]">
                                                                 <div>
@@ -967,7 +968,8 @@
                                             <div>
                                                 <h4 className="text-white text-xs font-black uppercase mb-2 border-b border-gray-800 pb-1">Partidos donde juego ({playedMatchesList.length})</h4>
                                                 {playedMatchesList.length > 0 ? (
-                                                    <div className="space-y-2 max-h-40 overflow-y-auto no-scrollbar">
+                                                    // FIX: Scrollbar visible y altura limitada
+                                                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                                                         {playedMatchesList.map(m => (
                                                             <div key={m.id} className="text-xs text-gray-300 bg-gray-900 p-2 rounded flex justify-between items-center border-l-2 border-blue-500">
                                                                 <div>
@@ -987,7 +989,8 @@
                                             <div>
                                                 <h4 className="text-white text-xs font-black uppercase mb-2 border-b border-gray-800 pb-1">Mis Postulaciones ({myPostulations.length})</h4>
                                                 {myPostulations.length > 0 ? (
-                                                    <div className="space-y-2">
+                                                    // FIX: Scrollbar visible y altura limitada (antes no tenía límite)
+                                                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                                                         {myPostulations.map(p => (
                                                             <div key={p.id} className="text-xs text-gray-300 bg-gray-900 p-2 rounded flex justify-between items-center border-l-2 border-yellow-500">
                                                                 <div>
