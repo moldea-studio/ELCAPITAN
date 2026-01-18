@@ -1154,13 +1154,39 @@
                         </div>
                     )}
 
+                    {/* MODAL MAPA - AHORA CON FILTRO OSCURO */}
                     {showMapModal && (
-                        <div className="fixed inset-0 bg-black/90 z-[1000] flex items-center justify-center p-4">
-                             <div className="bg-[#1a1a1a] p-6 rounded w-full max-w-sm text-center border border-gray-700">
-                                 <MapPin size={48} className="mx-auto text-[#00ff55] mb-4"/>
-                                 <h3 className="text-white font-bold text-lg">Mapa de Canchas</h3>
-                                 <p className="text-gray-400 text-sm mt-2">Próximamente disponible. Estamos relevando todas las canchas de La Plata.</p>
-                                 <button onClick={() => setShowMapModal(false)} className="mt-6 w-full bg-gray-800 text-white py-2 rounded font-bold text-xs">CERRAR</button>
+                        <div className="fixed inset-0 bg-black/90 z-[1000] flex items-center justify-center p-2 sm:p-4">
+                             <div className="bg-[#1a1a1a] p-4 rounded-xl w-full max-w-4xl h-[80vh] flex flex-col border border-[#00ff55] shadow-2xl relative">
+                                 <div className="flex justify-between items-center mb-3">
+                                     <h3 className="text-[#00ff55] font-black text-xl flex items-center gap-2">
+                                         <MapPin className="text-[#00ff55] fill-current" size={24}/> MAPA DE CANCHAS
+                                     </h3>
+                                     <button onClick={() => setShowMapModal(false)} className="bg-gray-800 p-2 rounded-full text-white hover:bg-red-600 transition-colors">
+                                         <X size={20}/>
+                                     </button>
+                                 </div>
+                                 
+                                 {/* Contenedor del Mapa con Filtro Dark Mode */}
+                                 <div className="flex-1 bg-gray-900 rounded-lg overflow-hidden border border-gray-700 relative">
+                                     <iframe 
+                                        title="Mapa de Canchas La Plata"
+                                        width="100%" 
+                                        height="100%" 
+                                        style={{ border: 0, filter: 'invert(90%) hue-rotate(180deg) contrast(1.1) saturate(0.8)' }}
+                                        loading="lazy" 
+                                        allowFullScreen 
+                                        src="https://www.google.com/maps/embed?pb=!1m16!1m12!1m3!1d52345.02947230634!2d-57.98909117973686!3d-34.92049409999999!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!2m1!1scanchas%20de%20futbol%20la%20plata!5e0!3m2!1ses!2sar!4v1705546532832!5m2!1ses!2sar">
+                                     </iframe>
+                                     
+                                     {/* Overlay de carga (opcional, visual) */}
+                                     <div className="absolute inset-0 pointer-events-none border-4 border-[#00ff55]/20 rounded-lg"></div>
+                                 </div>
+                                 
+                                 <div className="mt-3 flex justify-between items-center text-xs text-gray-400">
+                                     <span>Mostrando canchas en La Plata y alrededores</span>
+                                     <button onClick={() => setShowMapModal(false)} className="sm:hidden bg-gray-800 text-white px-4 py-2 rounded font-bold">CERRAR</button>
+                                 </div>
                              </div>
                         </div>
                     )}
