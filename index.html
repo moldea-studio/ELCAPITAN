@@ -246,6 +246,7 @@
             // Computed
             const isAdmin = user && ADMIN_EMAILS.includes(user.email);
             const myOrganizedMatches = user ? matches.filter(m => m.createdBy === user.uid) : [];
+            const matchesJoined = user ? matches.filter(m => m.playersSigned && m.playersSigned.includes(user.uid)).length : 0; // NUEVO: Contador de partidos jugados
             const userRating = userProfile?.rating || 0;
             const userRatingCount = userProfile?.ratingCount || 0;
             const pendingInvitations = invitations.filter(inv => inv.status === 'pending');
@@ -899,6 +900,33 @@
                                         <div className="text-[#00ff55] font-bold">★ {userRating.toFixed(1)} <span className="text-gray-500 text-xs">({userRatingCount})</span></div>
                                     </div>
                                 </div>
+
+                                {/* FIX: Estadísticas en Perfil */}
+                                <div className="grid grid-cols-2 gap-4 mt-6 text-left">
+                                    <div className="bg-gray-800 p-3 rounded border border-gray-700">
+                                        <div className="text-xs text-gray-400 uppercase">Partidos Creados</div>
+                                        <div className="text-xl font-bold text-[#00ff55]">{myOrganizedMatches.length}</div>
+                                    </div>
+                                    <div className="bg-gray-800 p-3 rounded border border-gray-700">
+                                        <div className="text-xs text-gray-400 uppercase">Partidos Jugados</div>
+                                        <div className="text-xl font-bold text-white">{matchesJoined}</div>
+                                    </div>
+                                    <div className="bg-gray-800 p-3 rounded border border-gray-700 col-span-2">
+                                        <div className="text-xs text-gray-400 uppercase">Mi Equipo</div>
+                                        <div className="font-bold text-white flex items-center gap-2">
+                                            {myTeam ? (
+                                                <>
+                                                    <Shield size={16} className="text-[#00ff55]"/>
+                                                    {myTeam.name}
+                                                    <span className="text-[10px] bg-gray-700 px-2 py-0.5 rounded border border-gray-600">
+                                                        {isCaptain ? 'Capitán' : 'Jugador'}
+                                                    </span>
+                                                </>
+                                            ) : "Agente Libre"}
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <button onClick={handleLogout} className="mt-4 w-full bg-red-900/30 text-red-500 py-3 rounded font-bold">CERRAR SESIÓN</button>
                             </div>
                         )}
@@ -1000,7 +1028,13 @@
                                     )}
                                      <div className="flex gap-2">
                                          <button type="button" onClick={() => setShowPublishModal(false)} className="flex-1 py-3 text-gray-500 font-bold">Cancelar</button>
-                                         <button type="submit" className="flex-1 py-3 bg-[#00ff55] text-black font-black rounded">CONFIRMAR</button>
+                                         <button 
+                                            type="submit" 
+                                            disabled={submitting}
+                                            className={`flex-1 py-3 bg-[#00ff55] text-black font-black rounded hover:bg-white transition-all transform active:scale-95 ${submitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                         >
+                                            {submitting ? 'PUBLICANDO...' : 'CONFIRMAR'}
+                                         </button>
                                      </div>
                                  </form>
                              </div>
