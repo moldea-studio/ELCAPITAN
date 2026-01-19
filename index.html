@@ -87,7 +87,7 @@
             Link as LinkIcon, User, LogOut, Mail, Lock, Trash2, Ban, Trophy, 
             Activity, ArrowLeft, HelpCircle, FileText, Lock as LockIcon, Bell, 
             CheckCircle, XCircle, Send, Crown, UserPlus, Share2, Edit2, Save, MinusCircle,
-            Home, Zap, ClipboardList, AlertTriangle, Download, UserCheck, UserX, Clock, MessageCircle, Beer, Flame, Banknote, Image as ImageIcon, Camera, ChevronDown as ChevDown, ChevronUp as ChevUp, Info, Check, X as XIcon, Inbox
+            Home, Zap, ClipboardList, AlertTriangle, Download, UserCheck, UserX, Clock, MessageCircle, Beer, Flame, Banknote, Image as ImageIcon, Camera, ChevronDown as ChevDown, ChevronUp as ChevUp, Info, Check, X as XIcon
         } from 'https://esm.sh/lucide-react@0.294.0';
         
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
@@ -124,13 +124,13 @@
         };
 
         const MATCH_LEVELS = ["Tranqui / Joda 🍻", "Picado Medio ⚽", "A Morir (Competitivo) 🏆"];
+        // NUEVO: GÉNEROS DE PARTIDO
         const MATCH_GENDERS = ["Hombres 🚹", "Mujeres 🚺", "Mixto ⚧️"];
         const POSITIONS_LIST = ["Arquero", "Defensor", "Medio", "Delantero", "Polifuncional"];
         
         // REGLAS DE NEGOCIO
         const DAYS_BETWEEN_UPDATES = 30;
-        const MAX_ACTIVE_APPLICATIONS_PER_USER = 4;
-        const MAX_APPLICATIONS_PER_SLOT = 10; // 10 solicitudes por puesto faltante
+        const MAX_ACTIVE_APPLICATIONS = 4;
 
         const today = new Date().toISOString().split('T')[0];
         const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
@@ -171,9 +171,9 @@
 
         // --- DATOS FICTICIOS (Seeders) ---
         const INITIAL_MATCHES = [
-            { date: yesterdayString, time: '20:00', place: 'Predio El Rincón', zone: 'La Plata (Casco Urbano)', format: 'F5', type: 'player', gender: 'Hombres 🚹', missing: 0, position: 'Arquero', teamName: 'Los Rotos FC', urgent: false, playersSigned: ['dummy_1', 'dummy_2'], level: 'Picado Medio ⚽', applicationsCount: 0 },
-            { date: today, time: '21:00', place: 'Club Atl. Villa Elisa', zone: 'Villa Elisa', format: 'F7', type: 'rival', gender: 'Mixto ⚧️', isChallenge: true, stake: 'La cancha ($30.000)', missing: 0, position: 'Equipo Completo', teamName: 'Defensores VE', urgent: true, level: 'A Morir (Competitivo) 🏆', applicationsCount: 2 },
-            { date: tomorrow, time: '19:00', place: 'La Plaza', zone: 'City Bell', format: 'F5', type: 'player', missing: 2, gender: 'Mujeres 🚺', position: 'Defensores', teamName: 'Inter CB', urgent: false, level: 'Tranqui / Joda 🍻', applicationsCount: 5 },
+            { date: yesterdayString, time: '20:00', place: 'Predio El Rincón', zone: 'La Plata (Casco Urbano)', format: 'F5', type: 'player', gender: 'Hombres 🚹', missing: 0, position: 'Arquero', teamName: 'Los Rotos FC', urgent: false, playersSigned: ['dummy_1', 'dummy_2'], level: 'Picado Medio ⚽' },
+            { date: today, time: '21:00', place: 'Club Atl. Villa Elisa', zone: 'Villa Elisa', format: 'F7', type: 'rival', gender: 'Mixto ⚧️', isChallenge: true, stake: 'La cancha ($30.000)', missing: 0, position: 'Equipo Completo', teamName: 'Defensores VE', urgent: true, level: 'A Morir (Competitivo) 🏆' },
+            { date: tomorrow, time: '19:00', place: 'La Plaza', zone: 'City Bell', format: 'F5', type: 'player', missing: 2, gender: 'Mujeres 🚺', position: 'Defensores', teamName: 'Inter CB', urgent: false, level: 'Tranqui / Joda 🍻' },
         ];
         const INITIAL_PLAYERS = [
             { uid: 'dummy_1', name: 'Lucho M.', position: 'Arquero', zone: 'Villa Elisa', rating: 4.5, ratingCount: 10, status: 'Disponible', level: 'A Morir (Competitivo) 🏆', gender: 'Hombres 🚹' },
@@ -251,10 +251,12 @@
             const [targetPlayer, setTargetPlayer] = useState(null);
             const [newTeamName, setNewTeamName] = useState('');
             const [teamLogoFile, setTeamLogoFile] = useState(null);
+            // NUEVO: 'gender' en publishData
             const [publishData, setPublishData] = useState({ type: 'player', format: 'F5', zone: 'La Plata (Casco Urbano)', place: '', time: '', date: '', level: 'Picado Medio ⚽', gender: 'Hombres 🚹', isChallenge: false, stake: '' });
             const [neededPositions, setNeededPositions] = useState(['Cualquiera']);
             const [playerPostulationLevel, setPlayerPostulationLevel] = useState('Picado Medio ⚽');
             const [postulationPosition, setPostulationPosition] = useState('Polifuncional'); 
+            // NUEVO: 'playerPostulationGender'
             const [playerPostulationGender, setPlayerPostulationGender] = useState('Hombres 🚹');
             
             // Edit States
@@ -455,11 +457,9 @@
                 } else { setShowInstallModal(true); }
             };
 
-            // --- NUEVO SISTEMA: APLICAR A PARTIDO (SOLICITUD) ---
             const handleApplyMatch = async (match) => {
                 if (!user) return setShowLoginModal(true);
                 
-                // Si ya es miembro (aceptado), puede salir.
                 if (match.playersSigned?.includes(user.uid)) {
                      const ref = doc(db, 'artifacts', appId, 'public', 'data', 'matches', match.id);
                      try {
@@ -468,27 +468,16 @@
                      return;
                 }
 
-                // VALIDACIÓN 1: LÍMITE DE 4 SOLICITUDES ACTIVAS POR USUARIO
-                if (mySentApplications.length >= MAX_ACTIVE_APPLICATIONS_PER_USER) {
-                    setFeedbackModal({ show: true, type: 'error', title: 'LÍMITE ALCANZADO', message: `Ya tienes ${MAX_ACTIVE_APPLICATIONS_PER_USER} solicitudes pendientes. Espera a que te respondan.` });
+                if (mySentApplications.length >= MAX_ACTIVE_APPLICATIONS) {
+                    setFeedbackModal({ show: true, type: 'error', title: 'LÍMITE ALCANZADO', message: `Ya tienes ${MAX_ACTIVE_APPLICATIONS} solicitudes pendientes. Espera a que te respondan.` });
                     return;
                 }
 
-                // VALIDACIÓN 2: LÍMITE DE SOLICITUDES POR PARTIDO (10 x PUESTO)
-                const maxRequestsForThisMatch = (match.missing || 1) * MAX_APPLICATIONS_PER_SLOT;
-                if ((match.applicationsCount || 0) >= maxRequestsForThisMatch) {
-                    setFeedbackModal({ show: true, type: 'error', title: 'CUPO LLENO', message: 'Este partido ya tiene demasiadas solicitudes pendientes.' });
-                    return;
-                }
-
-                // VALIDACIÓN 3: YA ENVIASTE SOLICITUD
                 if (invitations.some(i => i.fromUserId === user.uid && i.matchId === match.id && i.status === 'pending')) {
                      setFeedbackModal({ show: true, type: 'info', title: 'YA SOLICITADO', message: 'Ya has enviado una solicitud a este partido.' });
                      return;
                 }
 
-                // ENVIAR SOLICITUD Y ACTUALIZAR CONTADOR DE POSTULACIONES DEL PARTIDO
-                const matchRef = doc(db, 'artifacts', appId, 'public', 'data', 'matches', match.id);
                 try {
                     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'invitations'), {
                         type: 'match_request', 
@@ -501,36 +490,23 @@
                         status: 'pending',
                         createdAt: serverTimestamp()
                     });
-                    await updateDoc(matchRef, { applicationsCount: increment(1) });
                     setFeedbackModal({ show: true, type: 'success', title: 'SOLICITUD ENVIADA', message: 'El organizador ha recibido tu petición.' });
                 } catch(e) { alert(e.message); }
             };
 
-            // --- NUEVO: CANCELAR SOLICITUD ---
-            const handleCancelRequest = async (invitationId, matchId) => {
+            const handleCancelRequest = async (invitationId) => {
                 if (!user) return;
                 try {
                     await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'invitations', invitationId));
-                    // Restamos el contador de postulaciones en el partido
-                    if(matchId) {
-                        const matchRef = doc(db, 'artifacts', appId, 'public', 'data', 'matches', matchId);
-                        await updateDoc(matchRef, { applicationsCount: increment(-1) });
-                    }
                     setFeedbackModal({ show: true, type: 'info', title: 'CANCELADA', message: 'Has cancelado la solicitud.' });
                 } catch (e) { alert(e.message); }
             };
 
-            // --- RESPONDER A SOLICITUD DE PARTIDO ---
             const handleRespondMatchRequest = async (inv, action) => {
                 try {
                     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'invitations', inv.id), { status: action });
-                    
-                    // Si aceptamos o rechazamos, ya no es pendiente, bajamos el contador de postulaciones
-                    const matchRef = doc(db, 'artifacts', appId, 'public', 'data', 'matches', inv.matchId);
-                    await updateDoc(matchRef, { applicationsCount: increment(-1) });
-
                     if (action === 'accepted') {
-                        // Si se acepta, ocupamos un lugar en el partido
+                        const matchRef = doc(db, 'artifacts', appId, 'public', 'data', 'matches', inv.matchId);
                         await updateDoc(matchRef, {
                             playersSigned: arrayUnion(inv.fromUserId),
                             missing: increment(-1) 
@@ -550,9 +526,9 @@
                         missing: publishData.type==='rival'?0:neededPositions.length,
                         position: publishData.type==='rival'?'Equipo Completo':neededPositions.join(', '),
                         teamName: myTeam ? myTeam.name : (userProfile?.nickname || user.displayName) + " Team",
-                        urgent: false, playersSigned: [], createdBy: user.uid, createdAt: serverTimestamp(),
-                        applicationsCount: 0 // Inicia con 0 postulaciones
+                        urgent: false, playersSigned: [], createdBy: user.uid, createdAt: serverTimestamp()
                     });
+                    // Resetear el form manteniendo el último género usado por comodidad
                     setPublishData({ ...publishData, place: '', time: '', date: '', isChallenge: false, stake: '' });
                     setNeededPositions(['Cualquiera']);
                     setShowPublishModal(false);
@@ -571,7 +547,7 @@
                         position: postulationPosition, 
                         zone: 'La Plata',
                         level: playerPostulationLevel,
-                        gender: playerPostulationGender, 
+                        gender: playerPostulationGender, // NUEVO: GÉNERO
                         rating: 0, ratingCount: 0, status: 'Disponible', createdAt: serverTimestamp()
                     });
                     setFeedbackModal({ show: true, type: 'success', title: '¡LISTO!', message: 'Te has postulado correctamente.' });
@@ -591,11 +567,14 @@
 
             const handleUpdateNickname = () => {
                 if(!user || !nicknameInput.trim()) return;
+                
                 const { available, daysLeft } = checkUpdateAvailability(userProfile?.lastNicknameUpdate);
+                
                 if (!available) {
                     setFeedbackModal({ show: true, type: 'error', title: 'ESPERA UN POCO', message: `Solo puedes cambiar tu apodo una vez cada 30 días. Faltan ${daysLeft} días.` });
                     return;
                 }
+
                 askConfirmation("Estás a punto de cambiar tu apodo. Recuerda que debes esperar 30 días para hacerlo nuevamente. ¿Confirmar?", confirmUpdateNickname);
             };
 
@@ -928,9 +907,6 @@
                                             const pendingInvitation = invitations.find(i => i.fromUserId === user?.uid && i.matchId === m.id && i.status === 'pending');
                                             const isPending = !!pendingInvitation;
                                             
-                                            // NUEVO: CONTADOR VISIBLE PARA TODOS
-                                            const appCount = m.applicationsCount || 0;
-
                                             return (
                                                 <div key={m.id} className="p-3 border-b border-gray-300 flex justify-between items-center bg-white hover:bg-gray-50">
                                                     <div>
@@ -945,20 +921,13 @@
                                                             <span className="text-[9px] bg-gray-200 px-1 rounded text-gray-600">{m.level}</span>
                                                         </div>
                                                         {m.isChallenge && <div className="text-[10px] text-yellow-700 font-bold mt-1">🔥 {m.stake}</div>}
-                                                        
-                                                        {/* NUEVO: CONTADOR DE POSTULACIONES (VISIBLE PARA TODOS) */}
-                                                        {appCount > 0 && (
-                                                            <div className="text-[10px] text-blue-600 font-bold mt-1 flex items-center gap-1">
-                                                                <Inbox size={10}/> {appCount} Postulaciones
-                                                            </div>
-                                                        )}
                                                     </div>
                                                     <div className="flex items-center gap-2">
                                                         {(isAdmin || (user && m.createdBy === user.uid)) && <button onClick={() => { askConfirmation("¿Borrar?", async () => await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'matches', m.id))) }} className="text-red-500 bg-red-100 p-1.5 rounded"><Trash2 size={14}/></button>}
                                                         <button 
                                                             onClick={() => {
                                                                 if (isSigned) handleApplyMatch(m); 
-                                                                else if (isPending) handleCancelRequest(pendingInvitation.id, m.id); 
+                                                                else if (isPending) handleCancelRequest(pendingInvitation.id); 
                                                                 else handleApplyMatch(m);
                                                             }}
                                                             className={`px-3 py-1.5 rounded text-xs font-bold border-b-2 transition-all active:scale-95 ${
@@ -975,4 +944,661 @@
                                          })}
                                     </div>
                                 </div>
-<!-- ... rest of the code is unchanged ... -->
+                                <div className="lg:col-span-4 space-y-4">
+                                    <div className="bg-[#212121] text-white px-4 py-3 rounded-t-lg border-t-4 border-[#00ff55] font-bold text-sm flex items-center gap-2"><Users size={16} className="text-[#00ff55]"/> AGENTES LIBRES</div>
+                                    <div className="bg-[#dce6dc] border border-gray-600 rounded-b-lg shadow-md p-2 space-y-2">
+                                        {players.map(p => {
+                                            const posLower = p.position.toLowerCase();
+                                            let posAbbr = "POL";
+                                            let posColor = "bg-green-600";
+                                            if (posLower.includes('arquero')) { posAbbr = "ARQ"; posColor = "bg-orange-500"; }
+                                            else if (posLower.includes('defensor')) { posAbbr = "DEF"; }
+                                            else if (posLower.includes('medio') || posLower.includes('volante')) { posAbbr = "VOL"; }
+                                            else if (posLower.includes('delantero') || posLower.includes('9')) { posAbbr = "DEL"; }
+
+                                            return (
+                                                <div key={p.id} className="bg-white p-2 rounded shadow-sm flex justify-between items-center border border-gray-300">
+                                                    <div className="flex items-center">
+                                                        <div className={`w-8 h-8 ${posColor} flex items-center justify-center font-bold text-white rounded mr-3 shadow-sm text-[10px]`}>{posAbbr}</div>
+                                                        <div>
+                                                            <div className="font-bold text-xs uppercase text-gray-700 flex items-center gap-2">{p.name}</div>
+                                                            <div className="mt-0.5"><StarRating rating={p.rating} /></div>
+                                                            <div className="text-[10px] text-gray-500 mt-0.5">{p.position} | {p.level} | {p.gender}</div>
+                                                        </div>
+                                                    </div>
+                                                    {(isAdmin || (user && p.uid === user.uid)) ? (
+                                                        <button onClick={() => { askConfirmation("¿Borrar?", async () => await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'players', p.id))) }} className="text-red-500 text-[10px] font-bold border border-red-200 px-2 py-1 rounded hover:bg-red-50">BAJARME</button>
+                                                    ) : (
+                                                        <button onClick={() => openInviteModal(p)} className="text-[#00ff55] text-xs border border-[#00ff55] px-2 py-1 rounded hover:bg-[#00ff55] hover:text-black font-bold">FICHAR</button>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                        <div className="mt-2 pt-2 border-t border-gray-300">
+                                            <div className="flex gap-2 mb-2">
+                                                <select className="flex-1 text-xs p-1 rounded border" value={postulationPosition} onChange={e=>setPostulationPosition(e.target.value)}>
+                                                    {POSITIONS_LIST.map(pos => <option key={pos} value={pos}>{pos}</option>)}
+                                                </select>
+                                                 {/* NUEVO SELECTOR DE GÉNERO PARA JUGADOR LIBRE */}
+                                                <select className="flex-1 text-xs p-1 rounded border" value={playerPostulationGender} onChange={e=>setPlayerPostulationGender(e.target.value)}>
+                                                    {MATCH_GENDERS.map(g => <option key={g} value={g}>{g}</option>)}
+                                                </select>
+                                            </div>
+                                            <div className="mb-2">
+                                                <select className="w-full text-xs p-1 rounded border" value={playerPostulationLevel} onChange={e=>setPlayerPostulationLevel(e.target.value)}>
+                                                    {MATCH_LEVELS.map(l=><option key={l} value={l}>{l}</option>)}
+                                                </select>
+                                            </div>
+                                            <button onClick={handleJoinAsPlayer} className="w-full bg-[#212121] text-[#00ff55] font-bold text-xs py-2 rounded uppercase border border-gray-600 hover:border-[#00ff55]">Postularme</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                        
+                        {/* VISTAS EXTRAS: TEAM, PROFILE... (Mantenidas igual) */}
+                        {view === 'team' && (
+                            <div className="lg:col-span-12">
+                                <div className="bg-[#1a1a1a] p-4 rounded text-white text-center">
+                                    <h2 className="text-2xl font-black italic text-[#00ff55] mb-4">MI EQUIPO</h2>
+                                    {myTeam ? (
+                                        <div>
+                                            <div className="flex items-center justify-center gap-3 mb-6 border-b border-gray-700 pb-4 relative">
+                                                 <div className="relative group w-24 h-24">
+                                                     {uploadingLogo && (
+                                                         <div className="absolute inset-0 bg-black/70 rounded-full flex items-center justify-center z-40">
+                                                             <svg className="w-8 h-8 text-[#00ff55] animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>
+                                                         </div>
+                                                     )}
+                                                     {myTeam.logoUrl ? (
+                                                         <img src={myTeam.logoUrl} alt="Logo" className="w-full h-full rounded-full object-cover border-4 border-[#00ff55] shadow-lg"/>
+                                                     ) : (
+                                                         <div className="w-full h-full rounded-full bg-gray-700 flex items-center justify-center border-4 border-gray-600">
+                                                             <Shield size={40} className="text-gray-400"/>
+                                                         </div>
+                                                     )}
+                                                     {isCaptain && !uploadingLogo && (
+                                                         <label className="absolute -bottom-1 -right-1 bg-[#00ff55] text-black p-2 rounded-full cursor-pointer hover:bg-white hover:scale-110 transition-all shadow-xl border-2 border-black z-50 flex items-center justify-center">
+                                                             <Camera size={16} />
+                                                             <input type="file" accept="image/*" className="hidden" onChange={handleUpdateTeamLogo} />
+                                                         </label>
+                                                     )}
+                                                 </div>
+                                                <div className="text-left ml-4 flex flex-col justify-center">
+                                                    {isEditingTeamName ? (
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <input 
+                                                                value={teamNameInput}
+                                                                onChange={(e) => setTeamNameInput(e.target.value)}
+                                                                className="bg-black/50 text-white border border-[#00ff55] rounded px-2 py-1 text-lg font-bold w-full outline-none"
+                                                                placeholder="Nombre Equipo"
+                                                            />
+                                                            <button onClick={handleUpdateTeamName} className="text-[#00ff55]"><Save size={20}/></button>
+                                                            <button onClick={() => setIsEditingTeamName(false)} className="text-red-500"><X size={20}/></button>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="text-2xl font-black italic text-white uppercase tracking-tighter">{myTeam.name}</div>
+                                                            {isCaptain && <button onClick={() => { setTeamNameInput(myTeam.name); setIsEditingTeamName(true); }} className="text-gray-500 hover:text-white"><Edit2 size={16}/></button>}
+                                                        </div>
+                                                    )}
+                                                    
+                                                    <div className="text-xs text-[#00ff55] font-bold bg-green-900/30 px-2 py-0.5 rounded inline-block border border-green-800 self-start">
+                                                        Capitán: {myTeam.captainName}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-3 gap-2 mb-6">
+                                                <button onClick={() => setShowScoutModal(true)} className="bg-gray-800 border border-gray-600 p-2 rounded hover:bg-gray-700 flex flex-col items-center gap-1">
+                                                    <Search size={18} className="text-[#00ff55]"/>
+                                                    <span className="text-[9px] font-bold uppercase">Fichar</span>
+                                                </button>
+                                                <button onClick={() => setView('app')} className="bg-gray-800 border border-gray-600 p-2 rounded hover:bg-gray-700 flex flex-col items-center gap-1">
+                                                    <Swords size={18} className="text-yellow-500"/>
+                                                    <span className="text-[9px] font-bold uppercase">Buscar Rival</span>
+                                                </button>
+                                                <button onClick={() => { setPublishData({...publishData, type: 'rival'}); setShowPublishModal(true); }} className="bg-[#00ff55] text-black border border-[#00cc44] p-2 rounded hover:bg-white flex flex-col items-center gap-1 shadow-[0_0_10px_rgba(0,255,85,0.2)]">
+                                                    <Trophy size={18} />
+                                                    <span className="text-[9px] font-black uppercase">Publicar</span>
+                                                </button>
+                                            </div>
+                                            
+                                            <div className="space-y-2 mb-6 text-left">
+                                                <h4 className="text-xs font-bold text-gray-500 uppercase mb-2 pl-1">Plantel</h4>
+                                                {myTeam.members?.map(m => (
+                                                    <div key={m.uid} className={`flex justify-between items-center p-3 rounded border transition-all ${m.status === 'injured' ? 'border-red-900/50 bg-red-900/10' : 'border-gray-700 bg-gray-800/50 hover:bg-gray-800'}`}>
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center font-bold text-white text-xs border border-gray-500">{m.name.charAt(0)}</div>
+                                                            <div>
+                                                                <div className="text-gray-200 text-sm font-bold flex items-center gap-2">
+                                                                    {m.name} 
+                                                                    {m.role === 'captain' && <Crown size={12} className="text-yellow-500"/>}
+                                                                </div>
+                                                                <div className={`text-[10px] font-bold uppercase ${m.status === 'injured' ? 'text-red-500' : 'text-green-500'}`}>
+                                                                    {m.status === 'injured' ? 'Baja Temporal' : 'Disponible'}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        {(isCaptain || user.uid === m.uid) && (
+                                                            <button onClick={() => handleToggleMemberStatus(m.uid, m.status)} className={`flex items-center gap-1 px-3 py-1.5 rounded text-[10px] font-bold border transition-colors ${m.status === 'active' ? 'border-red-900 text-red-400 hover:bg-red-900/20' : 'border-green-900 text-green-400 hover:bg-green-900/20'}`}>
+                                                                {m.status === 'active' ? <><UserX size={12}/> Marcar Baja</> : <><UserCheck size={12}/> Estoy Listo</>}
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div className="border-t border-gray-800 pt-4 mt-8">
+                                                {isCaptain ? (
+                                                    <button onClick={handleDeleteTeam} className="text-red-500 text-xs font-bold border border-red-900/50 bg-red-900/10 px-4 py-2 rounded hover:bg-red-900/30 w-full flex items-center justify-center gap-2">
+                                                        <AlertTriangle size={14}/> DISOLVER EQUIPO
+                                                    </button>
+                                                ) : (
+                                                    <button onClick={handleLeaveTeam} className="text-red-400 text-xs font-bold border border-red-900/30 px-4 py-2 rounded hover:bg-red-900/20 w-full">
+                                                        Abandonar Equipo
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="text-center py-12">
+                                            <Shield size={64} className="mx-auto text-gray-700 mb-6 opacity-50"/>
+                                            <h3 className="text-2xl font-black text-white italic mb-2">SIN EQUIPO</h3>
+                                            <p className="text-gray-400 text-sm mb-8 max-w-xs mx-auto">Crea tu propio equipo para gestionar tu plantel o busca uno existente.</p>
+                                            <div className="flex flex-col gap-3 max-w-xs mx-auto">
+                                                <button onClick={() => setShowCreateTeamModal(true)} className="bg-[#00ff55] text-black font-black px-6 py-4 rounded-lg shadow-[0_0_20px_rgba(0,255,85,0.3)] hover:scale-105 transition-transform flex items-center justify-center gap-2 uppercase tracking-wider">
+                                                    <PlusCircle size={20}/> Crear Equipo
+                                                </button>
+                                                <button onClick={() => setShowTeamSearchModal(true)} className="bg-gray-800 text-white font-bold px-6 py-4 rounded-lg border border-gray-600 hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 uppercase tracking-wider">
+                                                    <Search size={20}/> Buscar Equipo
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                        {view === 'profile' && (
+                            <div className="lg:col-span-12">
+                                <div className="bg-[#1a1a1a] p-6 rounded flex items-center gap-4">
+                                    {user?.photoURL ? (
+                                        <img src={user.photoURL} alt="Perfil" className="w-20 h-20 rounded-full object-cover border-2 border-[#00ff55]" />
+                                    ) : (
+                                        <div className="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center text-4xl">👤</div>
+                                    )}
+                                    <div className="flex-1">
+                                        {isEditingNickname ? (
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <input 
+                                                    value={nicknameInput} 
+                                                    onChange={e=>setNicknameInput(e.target.value)} 
+                                                    className="bg-black/50 text-white border border-[#00ff55] rounded px-2 py-1 text-lg font-bold w-full outline-none"
+                                                    placeholder="Nuevo apodo"
+                                                />
+                                                <button onClick={handleUpdateNickname} className="text-[#00ff55]"><Save size={20}/></button>
+                                                <button onClick={() => setIsEditingNickname(false)} className="text-red-500"><X size={20}/></button>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="text-2xl font-black text-white italic">{userProfile?.nickname || user?.displayName}</div>
+                                                    <button onClick={() => { setNicknameInput(userProfile?.nickname || user?.displayName); setIsEditingNickname(true); }} className="text-gray-500 hover:text-white"><Edit2 size={16}/></button>
+                                                </div>
+                                                <div className="text-gray-500 text-xs mb-1">{user?.email}</div>
+                                                
+                                                {isEditingPosition ? (
+                                                    <div className="flex items-center gap-2">
+                                                        <select 
+                                                            value={userProfile?.position} 
+                                                            onChange={(e) => handleUpdatePosition(e.target.value)}
+                                                            className="bg-black/50 text-[#00ff55] text-xs font-bold border border-[#00ff55] rounded px-1 outline-none"
+                                                        >
+                                                            {POSITIONS_LIST.map(pos => <option key={pos} value={pos}>{pos}</option>)}
+                                                        </select>
+                                                        <button onClick={() => setIsEditingPosition(false)} className="text-red-500"><X size={14}/></button>
+                                                    </div>
+                                                ) : (
+                                                     <div className="flex items-center gap-2 text-[#00ff55] text-xs font-bold bg-green-900/30 px-2 py-0.5 rounded border border-green-800 self-start">
+                                                        {userProfile?.position || "Polifuncional"}
+                                                        <button onClick={() => setIsEditingPosition(true)} className="text-gray-400 hover:text-white"><Edit2 size={10}/></button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                        <div className="text-[#00ff55] font-bold mt-1">★ {userRating.toFixed(1)} <span className="text-gray-500 text-xs">({userRatingCount})</span></div>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4 mt-6 text-left">
+                                    <div className="bg-gray-800 p-3 rounded border border-gray-700">
+                                        <div className="text-xs text-gray-400 uppercase">Partidos Creados</div>
+                                        <div className="text-xl font-bold text-[#00ff55]">{myFullHistoryMatches.length}</div>
+                                    </div>
+                                    <div className="bg-gray-800 p-3 rounded border border-gray-700">
+                                        <div className="text-xs text-gray-400 uppercase">Partidos Jugados</div>
+                                        <div className="text-xl font-bold text-white">{matchesJoined}</div>
+                                    </div>
+                                    <div className="bg-gray-800 p-3 rounded border border-gray-700 col-span-2">
+                                        <div className="text-xs text-gray-400 uppercase">Mi Equipo</div>
+                                        <div className="font-bold text-white flex items-center gap-2">
+                                            {myTeam ? (
+                                                <>
+                                                    <Shield size={16} className="text-[#00ff55]"/>
+                                                    {myTeam.name}
+                                                    <span className="text-[10px] bg-gray-700 px-2 py-0.5 rounded border border-gray-600">
+                                                        {isCaptain ? 'Capitán' : 'Jugador'}
+                                                    </span>
+                                                </>
+                                            ) : "Agente Libre"}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="mt-4">
+                                    <button 
+                                        onClick={() => setShowStatsDetails(!showStatsDetails)} 
+                                        className="w-full flex items-center justify-between bg-gray-800 p-3 rounded border border-gray-700 text-white font-bold text-sm hover:bg-gray-700 transition-colors"
+                                    >
+                                        <span>VER HISTORIAL COMPLETO</span>
+                                        {showStatsDetails ? <ChevUp size={16}/> : <ChevDown size={16}/>}
+                                    </button>
+
+                                    {showStatsDetails && (
+                                        <div className="mt-2 bg-[#1a1a1a] border border-gray-800 rounded p-3 text-left space-y-4 modal-animate">
+                                            <p className="text-[10px] text-gray-500 italic text-center">Mostrando todo tu historial</p>
+                                            <div>
+                                                <h4 className="text-[#00ff55] text-xs font-black uppercase mb-2 border-b border-gray-800 pb-1">Organizados por mí ({myFullHistoryMatches.length})</h4>
+                                                {myFullHistoryMatches.length > 0 ? (
+                                                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                                                        {myFullHistoryMatches.map(m => (
+                                                            <div key={m.id} className="text-xs text-gray-300 bg-gray-900 p-2 rounded flex justify-between items-center border-l-2 border-[#00ff55]">
+                                                                <div>
+                                                                    <div className="font-bold text-white">{m.teamName}</div>
+                                                                    <div className="text-[10px] text-gray-500">{m.date} {m.time} | {m.place}</div>
+                                                                </div>
+                                                                <div className="text-right">
+                                                                    <span className="block bg-gray-800 px-1.5 py-0.5 rounded text-[9px] mb-1">{m.format}</span>
+                                                                    <button onClick={() => handleDeleteMatch(m.id)} className="text-red-500 hover:text-white p-1"><Trash2 size={12}/></button>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-gray-600 text-xs italic">Aún no has organizado partidos.</p>
+                                                )}
+                                            </div>
+
+                                            <div>
+                                                <h4 className="text-white text-xs font-black uppercase mb-2 border-b border-gray-800 pb-1">Partidos donde juego ({myFullJoinedMatches.length})</h4>
+                                                {myFullJoinedMatches.length > 0 ? (
+                                                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                                                        {myFullJoinedMatches.map(m => (
+                                                            <div key={m.id} className="text-xs text-gray-300 bg-gray-900 p-2 rounded flex justify-between items-center border-l-2 border-blue-500">
+                                                                <div>
+                                                                    <span className="text-white font-bold">{m.teamName}</span>
+                                                                    <div className="text-gray-500">{m.date} {m.time} | {m.place}</div>
+                                                                </div>
+                                                                <span className="bg-gray-800 px-2 py-0.5 rounded text-[9px]">{m.format}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-gray-600 text-xs italic">Aún no te has anotado en partidos.</p>
+                                                )}
+                                            </div>
+
+                                            <div>
+                                                <h4 className="text-white text-xs font-black uppercase mb-2 border-b border-gray-800 pb-1">Mis Postulaciones ({myPostulations.length})</h4>
+                                                {myPostulations.length > 0 ? (
+                                                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                                                        {myPostulations.map(p => (
+                                                            <div key={p.id} className="text-xs text-gray-300 bg-gray-900 p-2 rounded flex justify-between items-center border-l-2 border-yellow-500">
+                                                                <div>
+                                                                    <span className="text-white font-bold">{p.position}</span>
+                                                                    <div className="text-gray-500">Zona: {p.zone} | {p.gender}</div>
+                                                                </div>
+                                                                <button onClick={() => handleDeletePlayer(p.id)} className="text-red-500 hover:text-white"><Trash2 size={14}/></button>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-gray-600 text-xs italic">No estás postulado como libre.</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <button onClick={handleLogout} className="mt-8 w-full bg-red-900/30 text-red-500 py-3 rounded font-bold border border-red-900/50 hover:bg-red-900/50 transition-colors">CERRAR SESIÓN</button>
+                            </div>
+                        )}
+                    </main>
+
+                    {/* FOOTER INFERIOR (VISIBLE SIEMPRE) */}
+                    {view !== 'landing' && (
+                        <div className="fixed bottom-0 left-0 w-full bg-[#000000] border-t-2 border-[#00ff55] flex justify-around items-center h-20 pb-2 z-[9999] shadow-[0_-5px_20px_rgba(0,0,0,0.8)]">
+                            <button onClick={() => setView('app')} className={`flex flex-col items-center gap-1 w-full h-full justify-center ${view === 'app' ? 'text-[#00ff55]' : 'text-gray-500'}`}>
+                                <Home size={24} className={view === 'app' ? "fill-current" : ""}/> 
+                                <span className="text-[10px] font-bold uppercase">Inicio</span>
+                            </button>
+                            <button onClick={() => user ? setView('team') : setShowLoginModal(true)} className={`flex flex-col items-center gap-1 w-full h-full justify-center ${view === 'team' ? 'text-[#00ff55]' : 'text-gray-500'}`}>
+                                <Shield size={24} className={view === 'team' ? "fill-current" : ""}/> 
+                                <span className="text-[10px] font-bold uppercase">Mi Equipo</span>
+                            </button>
+                            <button onClick={() => user ? setView('profile') : setShowLoginModal(true)} className={`flex flex-col items-center gap-1 w-full h-full justify-center ${view === 'profile' ? 'text-[#00ff55]' : 'text-gray-500'}`}>
+                                <User size={24} className={view === 'profile' ? "fill-current" : ""}/> 
+                                <span className="text-[10px] font-bold uppercase">Perfil</span>
+                            </button>
+                        </div>
+                    )}
+                    
+                    {/* MODALES VARIOS (Login, Publish, etc.) se mantienen igual en estructura */}
+                    {showLoginModal && (
+                        <div className="fixed inset-0 bg-black/90 z-[1000] flex items-center justify-center p-4">
+                            <div className="bg-[#1a1a1a] p-6 rounded w-full max-w-xs text-center border border-[#00ff55]">
+                                <h3 className="text-white font-bold mb-4 text-lg">ACCESO REQUERIDO</h3>
+                                <button onClick={handleGoogleLogin} className="w-full bg-white hover:bg-gray-100 text-black font-bold py-3 px-4 rounded-xl shadow-lg flex items-center justify-center gap-3 transition-all active:scale-95 border border-gray-200">
+                                    <svg className="w-5 h-5" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.17c-.22-.66-.35-1.36-.35-2.17s.13-1.51.35-2.17V7.61H2.18C.79 10.37.79 13.63 2.18 16.39l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.05l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+                                    Ingresar con Google
+                                </button>
+                                <button onClick={() => setShowLoginModal(false)} className="text-gray-500 text-xs mt-4">Cancelar</button>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {/* MODAL PUBLICAR (Simplificado para el ejemplo) */}
+                    {showPublishModal && (
+                         <div className="fixed inset-0 bg-black/90 z-[1000] flex items-center justify-center p-4">
+                             <div className="bg-[#1a1a1a] p-6 rounded w-full max-w-sm text-white border border-[#00ff55]">
+                                 <h3 className="text-[#00ff55] font-black italic text-xl mb-4 text-center">PUBLICAR PARTIDO</h3>
+                                 <form onSubmit={handlePublishMatch} className="space-y-3">
+                                     {/* ... inputs del form ... */}
+                                     <div className="flex gap-2"><button type="button" onClick={() => setPublishData({...publishData, type: 'rival'})} className={`flex-1 py-1 rounded text-xs font-bold ${publishData.type==='rival'?'bg-[#00ff55] text-black':'bg-gray-800'}`}>RIVAL</button><button type="button" onClick={() => setPublishData({...publishData, type: 'player'})} className={`flex-1 py-1 rounded text-xs font-bold ${publishData.type==='player'?'bg-[#00ff55] text-black':'bg-gray-800'}`}>JUGADOR</button></div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="space-y-1"><label className="text-gray-400 text-xs font-bold ml-1">Formato</label><select value={publishData.format} onChange={(e) => setPublishData({...publishData, format: e.target.value})} className="w-full bg-black/50 border border-gray-700 text-white rounded py-2 px-2 text-sm outline-none focus:border-[#00ff55]"><option>F5</option><option>F7</option><option>F9</option><option>F11</option></select></div>
+                                        <div className="space-y-1"><label className="text-gray-400 text-xs font-bold ml-1">Zona</label><select value={publishData.zone} onChange={(e) => setPublishData({...publishData, zone: e.target.value})} className="w-full bg-black/50 border border-gray-700 text-white rounded py-2 px-2 text-sm outline-none focus:border-[#00ff55]"><ZoneSelectOptions /></select></div>
+                                    </div>
+                                    
+                                    {/* SELECCIÓN DE NIVEL */}
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="space-y-1">
+                                            <label className="text-gray-400 text-xs font-bold ml-1">Nivel</label>
+                                            <select value={publishData.level} onChange={(e) => setPublishData({...publishData, level: e.target.value})} className="w-full bg-black/50 border border-gray-700 text-white rounded py-2 px-2 text-sm outline-none focus:border-[#00ff55]">
+                                                {MATCH_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+                                            </select>
+                                        </div>
+                                        {/* NUEVO: SELECCIÓN DE GÉNERO EN PUBLICAR PARTIDO */}
+                                        <div className="space-y-1">
+                                            <label className="text-gray-400 text-xs font-bold ml-1">Género</label>
+                                            <select value={publishData.gender} onChange={(e) => setPublishData({...publishData, gender: e.target.value})} className="w-full bg-black/50 border border-gray-700 text-white rounded py-2 px-2 text-sm outline-none focus:border-[#00ff55]">
+                                                {MATCH_GENDERS.map(g => <option key={g} value={g}>{g}</option>)}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    {/* OPCIONES DE RIVAL (DESAFÍO) */}
+                                    {publishData.type === 'rival' && (
+                                        <div className="bg-gray-800/50 p-2 rounded border border-dashed border-gray-600 space-y-2">
+                                            <div className="flex gap-2">
+                                                <button type="button" onClick={() => setPublishData({...publishData, isChallenge: false})} className={`flex-1 py-1.5 text-xs font-bold rounded border ${!publishData.isChallenge ? 'bg-gray-700 text-white border-gray-500' : 'bg-transparent text-gray-500 border-transparent'}`}>Amistoso</button>
+                                                <button type="button" onClick={() => setPublishData({...publishData, isChallenge: true})} className={`flex-1 py-1.5 text-xs font-bold rounded border ${publishData.isChallenge ? 'bg-yellow-600 text-black border-yellow-500' : 'bg-transparent text-gray-500 border-transparent'}`}>🏆 DESAFÍO</button>
+                                            </div>
+                                            {publishData.isChallenge && (
+                                                <input placeholder="¿Qué se juega? (Ej: La cancha, $1000 c/u)" className="w-full bg-black/50 p-2 rounded text-sm border border-yellow-600 text-yellow-100 placeholder-yellow-700/50" value={publishData.stake} onChange={e=>setPublishData({...publishData, stake:e.target.value})} required/>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    <div className="space-y-1">
+                                        <label className="text-gray-400 text-xs font-bold ml-1">Fecha (Máx: 1 Semana)</label>
+                                        <input 
+                                            type="date" 
+                                            className="w-full bg-black/50 p-2 rounded text-sm border border-gray-700 text-white" 
+                                            value={publishData.date} 
+                                            min={today}
+                                            max={maxPublishDate}
+                                            onChange={e=>setPublishData({...publishData, date:e.target.value})} 
+                                            required
+                                        />
+                                    </div>
+                                    <input placeholder="Cancha" className="w-full bg-black/50 p-2 rounded text-sm border border-gray-700" value={publishData.place} onChange={e=>setPublishData({...publishData, place:e.target.value})} required/>
+                                    <input type="time" className="w-full bg-black/50 p-2 rounded text-sm border border-gray-700" value={publishData.time} onChange={e=>setPublishData({...publishData, time:e.target.value})} required/>
+                                    
+                                    {publishData.type === 'player' && (
+                                        <div className="space-y-2 p-3 bg-gray-800/50 rounded border border-dashed border-gray-600">
+                                            <label className="text-gray-400 text-xs font-bold">Posiciones Necesarias</label>
+                                            {neededPositions.map((pos, index) => (
+                                                <div key={index} className="flex gap-2">
+                                                    <select value={pos} onChange={(e) => handleSlotChange(index, e.target.value)} className="flex-1 bg-black/50 border border-gray-700 text-white rounded py-1.5 px-2 text-sm outline-none focus:border-[#00ff55]"><option>Cualquiera</option><option>Arquero</option><option>Defensor</option><option>Medio</option><option>Delantero</option></select>
+                                                    {neededPositions.length > 1 && (<button type="button" onClick={() => handleRemoveSlot(index)} className="text-red-500 hover:text-white"><MinusCircle size={18}/></button>)}
+                                                </div>
+                                            ))}
+                                            <button type="button" onClick={handleAddSlot} className="w-full text-[#00ff55] text-xs font-bold py-1 border border-[#00ff55]/30 rounded hover:bg-[#00ff55]/10">+ Agregar Jugador</button>
+                                        </div>
+                                    )}
+                                     <div className="flex gap-2">
+                                         <button type="button" onClick={() => setShowPublishModal(false)} className="flex-1 py-3 text-gray-500 font-bold">Cancelar</button>
+                                         <button 
+                                            type="submit" 
+                                            disabled={submitting}
+                                            className={`flex-1 py-3 bg-[#00ff55] text-black font-black rounded hover:bg-white transition-all transform active:scale-95 ${submitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                         >
+                                            {submitting ? 'PUBLICANDO...' : 'CONFIRMAR'}
+                                         </button>
+                                     </div>
+                                 </form>
+                             </div>
+                          </div>
+                    )}
+                    
+                    {/* MODALES ADICIONALES RESTAURADOS PARA QUE FUNCIONEN LOS BOTONES */}
+                    {showCreateTeamModal && (
+                        <div className="fixed inset-0 bg-black/90 z-[1000] flex items-center justify-center p-4">
+                            <div className="bg-[#1a1a1a] p-6 rounded w-full max-w-sm text-white border border-[#00ff55]">
+                                <h3 className="text-[#00ff55] font-black italic text-xl mb-4 text-center">CREAR EQUIPO</h3>
+                                <form onSubmit={handleCreateTeam} className="space-y-4">
+                                    <div>
+                                        <label className="text-gray-400 text-xs font-bold block mb-1">Nombre del Equipo</label>
+                                        <input type="text" value={newTeamName} onChange={(e) => setNewTeamName(e.target.value)} className="w-full bg-black/50 p-2 rounded text-sm border border-gray-700 text-white focus:border-[#00ff55] outline-none" placeholder="Ej: Los Rotos FC" required />
+                                    </div>
+                                    <div>
+                                        <label className="text-gray-400 text-xs font-bold block mb-1">Escudo (Opcional)</label>
+                                        <input type="file" accept="image/*" onChange={(e) => setTeamLogoFile(e.target.files[0])} className="w-full text-xs text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-[#00ff55] file:text-black hover:file:bg-[#00cc44]"/>
+                                    </div>
+                                    <div className="flex gap-2 pt-2">
+                                        <button type="button" onClick={() => setShowCreateTeamModal(false)} className="flex-1 py-2 text-gray-500 font-bold text-xs">CANCELAR</button>
+                                        <button type="submit" disabled={submitting} className="flex-1 py-2 bg-[#00ff55] text-black font-black rounded text-xs hover:bg-white">{submitting ? 'CREANDO...' : 'CREAR EQUIPO'}</button>
+                                    </div>
+                                </form>
+                                 <div className="mt-4 pt-4 border-t border-gray-800 text-center">
+                                    <button type="button" onClick={handleCreateDemoTeam} className="text-[10px] text-gray-500 underline">Generar Demo (Test)</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {showTeamSearchModal && (
+                        <div className="fixed inset-0 bg-black/90 z-[1000] flex items-center justify-center p-4">
+                            <div className="bg-[#1a1a1a] p-6 rounded w-full max-w-sm text-white border border-gray-600 h-[80vh] flex flex-col">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="text-white font-bold text-lg">Buscar Equipo</h3>
+                                    <button onClick={() => setShowTeamSearchModal(false)}><X size={20} className="text-gray-500"/></button>
+                                </div>
+                                <form onSubmit={handleSearchTeams} className="flex gap-2 mb-4">
+                                    <input value={teamSearchQuery} onChange={e=>setTeamSearchQuery(e.target.value)} className="flex-1 bg-black/50 border border-gray-700 rounded px-3 py-2 text-sm text-white" placeholder="Nombre del equipo..."/>
+                                    <button type="submit" className="bg-[#00ff55] text-black p-2 rounded"><Search size={18}/></button>
+                                </form>
+                                <div className="flex-1 overflow-y-auto space-y-2">
+                                    {teamSearchResults.map(t => (
+                                        <div key={t.id} className="bg-gray-800 p-3 rounded flex justify-between items-center">
+                                            <div className="flex items-center gap-3">
+                                                 {t.logoUrl ? <img src={t.logoUrl} className="w-8 h-8 rounded-full"/> : <Shield size={32} className="text-gray-600"/>}
+                                                 <div>
+                                                     <div className="font-bold text-sm">{t.name}</div>
+                                                     <div className="text-[10px] text-gray-400">Capitán: {t.captainName}</div>
+                                                 </div>
+                                            </div>
+                                            <button onClick={() => sendJoinRequest(t)} className="text-[#00ff55] text-xs border border-[#00ff55] px-2 py-1 rounded hover:bg-[#00ff55] hover:text-black">Unirme</button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {showScoutModal && (
+                        <div className="fixed inset-0 bg-black/90 z-[1000] flex items-center justify-center p-4">
+                            <div className="bg-[#1a1a1a] p-6 rounded w-full max-w-sm text-white border border-gray-600 h-[80vh] flex flex-col">
+                                 <div className="flex justify-between items-center mb-4">
+                                    <h3 className="text-white font-bold text-lg">Fichajes</h3>
+                                    <button onClick={() => setShowScoutModal(false)}><X size={20} className="text-gray-500"/></button>
+                                </div>
+                                <form onSubmit={handleSearchUsers} className="flex gap-2 mb-4">
+                                     <input value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} className="flex-1 bg-black/50 border border-gray-700 rounded px-3 py-2 text-sm text-white" placeholder="Nombre de jugador..."/>
+                                     <button type="submit" className="bg-[#00ff55] text-black p-2 rounded"><Search size={18}/></button>
+                                </form>
+                                 <div className="flex-1 overflow-y-auto space-y-2">
+                                    {searchResults.map(u => (
+                                        <div key={u.uid} className="bg-gray-800 p-3 rounded flex justify-between items-center">
+                                             <div>
+                                                 <div className="font-bold text-sm">{u.nickname || u.name}</div>
+                                                 <div className="text-[10px] text-gray-400">{u.position}</div>
+                                             </div>
+                                             <button onClick={() => openInviteModal(u)} className="text-[#00ff55] text-xs border border-[#00ff55] px-2 py-1 rounded hover:bg-[#00ff55] hover:text-black">Invitar</button>
+                                        </div>
+                                    ))}
+                                     {players.map(p => (
+                                        <div key={p.id} className="bg-gray-800 p-3 rounded flex justify-between items-center border border-gray-700">
+                                             <div>
+                                                 <div className="font-bold text-sm text-[#00ff55]">{p.name} <span className="text-[9px] bg-[#00ff55]/20 px-1 rounded">LIBRE</span></div>
+                                                 <div className="text-[10px] text-gray-400">{p.position} | {p.zone}</div>
+                                             </div>
+                                             <button onClick={() => openInviteModal(p)} className="text-white text-xs bg-[#00ff55]/20 border border-[#00ff55] px-2 py-1 rounded hover:bg-[#00ff55] hover:text-black">Fichar</button>
+                                        </div>
+                                     ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {showInviteModal && (
+                        <div className="fixed inset-0 bg-black/90 z-[1000] flex items-center justify-center p-4">
+                            <div className="bg-[#1a1a1a] p-6 rounded w-full max-w-sm text-white border border-[#00ff55]">
+                                <h3 className="text-white font-bold text-lg mb-2">Invitar a {targetPlayer?.name}</h3>
+                                <p className="text-xs text-gray-400 mb-4">Envía una propuesta formal para que se una a tu equipo.</p>
+                                <form onSubmit={sendInvitation} className="space-y-3">
+                                     <input value={inviteData.place} onChange={e=>setInviteData({...inviteData, place:e.target.value})} className="w-full bg-black/50 border border-gray-700 rounded p-2 text-sm text-white" placeholder="Lugar / Motivo (Opcional)" />
+                                     <input type="time" value={inviteData.time} onChange={e=>setInviteData({...inviteData, time:e.target.value})} className="w-full bg-black/50 border border-gray-700 rounded p-2 text-sm text-white" />
+                                     <div className="flex gap-2 mt-4">
+                                         <button type="button" onClick={() => setShowInviteModal(false)} className="flex-1 py-2 text-gray-500 text-xs font-bold">CANCELAR</button>
+                                         <button type="submit" disabled={submitting} className="flex-1 py-2 bg-[#00ff55] text-black text-xs font-black rounded hover:bg-white">ENVIAR</button>
+                                     </div>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* MODAL MAPA - AHORA CON FILTRO OSCURO */}
+                    {showMapModal && (
+                        <div className="fixed inset-0 bg-black/90 z-[1000] flex items-center justify-center p-2 sm:p-4">
+                             <div className="bg-[#1a1a1a] p-4 rounded-xl w-full max-w-4xl h-[80vh] flex flex-col border border-[#00ff55] shadow-2xl relative">
+                                 <div className="flex justify-between items-center mb-3">
+                                     <h3 className="text-[#00ff55] font-black text-xl flex items-center gap-2">
+                                         <MapPin className="text-[#00ff55] fill-current" size={24}/> MAPA DE CANCHAS
+                                     </h3>
+                                     <button onClick={() => setShowMapModal(false)} className="bg-gray-800 p-2 rounded-full text-white hover:bg-red-600 transition-colors">
+                                         <X size={20}/>
+                                     </button>
+                                 </div>
+                                 
+                                 {/* Contenedor del Mapa con Filtro Dark Mode */}
+                                 <div className="flex-1 bg-gray-900 rounded-lg overflow-hidden border border-gray-700 relative">
+                                     <iframe 
+                                        title="Mapa de Canchas La Plata"
+                                        width="100%" 
+                                        height="100%" 
+                                        style={{ border: 0, filter: 'invert(90%) hue-rotate(180deg) contrast(1.1) saturate(0.8)' }}
+                                        loading="lazy" 
+                                        allowFullScreen 
+                                        src="https://www.google.com/maps/embed?pb=!1m16!1m12!1m3!1d52345.02947230634!2d-57.98909117973686!3d-34.92049409999999!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!2m1!1scanchas%20de%20futbol%20la%20plata!5e0!3m2!1ses!2sar!4v1705546532832!5m2!1ses!2sar">
+                                     </iframe>
+                                     
+                                     {/* Overlay de carga (opcional, visual) */}
+                                     <div className="absolute inset-0 pointer-events-none border-4 border-[#00ff55]/20 rounded-lg"></div>
+                                 </div>
+                                 
+                                 <div className="mt-3 flex justify-between items-center text-xs text-gray-400">
+                                     <span>Mostrando canchas en La Plata y alrededores</span>
+                                     <button onClick={() => setShowMapModal(false)} className="sm:hidden bg-gray-800 text-white px-4 py-2 rounded font-bold">CERRAR</button>
+                                 </div>
+                             </div>
+                        </div>
+                    )}
+
+                    {showInstallModal && (
+                        <div className="fixed inset-0 bg-black/90 z-[1000] flex items-center justify-center p-4">
+                             <div className="bg-[#1a1a1a] p-6 rounded w-full max-w-sm text-center border border-[#00ff55]">
+                                 <Download size={48} className="mx-auto text-[#00ff55] mb-4"/>
+                                 <h3 className="text-white font-bold text-lg">Instalar App</h3>
+                                 <p className="text-gray-400 text-sm mt-2">Agrega El Capitán a tu pantalla de inicio para una mejor experiencia.</p>
+                                 <div className="flex gap-2 mt-6">
+                                     <button onClick={() => setShowInstallModal(false)} className="flex-1 text-gray-500 text-xs font-bold">LUEGO</button>
+                                     {deferredPrompt && <button onClick={handleInstallClick} className="flex-1 bg-[#00ff55] text-black py-2 rounded font-black text-xs">INSTALAR</button>}
+                                 </div>
+                             </div>
+                        </div>
+                    )}
+
+                    {confirmation.show && (
+                        <div className="fixed inset-0 bg-black/90 z-[1100] flex items-center justify-center p-4">
+                            <div className="bg-[#1a1a1a] p-6 rounded w-full max-w-xs text-center border border-red-500">
+                                <AlertCircle size={48} className="text-red-500 mx-auto mb-4"/>
+                                <h3 className="text-white font-bold mb-2">ATENCIÓN</h3>
+                                <p className="text-gray-300 text-sm mb-4">{confirmation.text}</p>
+                                <div className="flex gap-2 mt-4">
+                                    <button onClick={() => setConfirmation({show:false})} className="flex-1 py-2 text-gray-400">Cancelar</button>
+                                    <button onClick={() => {confirmation.action(); setConfirmation({show:false})}} className="flex-1 py-2 bg-red-600 text-white rounded font-bold">Confirmar</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* NUEVO POP-UP DE MENSAJES (ÉXITO / ERROR / INFO) */}
+                    {feedbackModal.show && (
+                        <div className="fixed inset-0 bg-black/90 z-[1200] flex items-center justify-center p-4 modal-animate">
+                            <div className={`bg-[#1a1a1a] p-6 rounded-xl w-full max-w-xs text-center border-2 shadow-[0_0_30px_rgba(0,0,0,0.5)] ${
+                                feedbackModal.type === 'error' ? 'border-red-500' : 
+                                feedbackModal.type === 'info' ? 'border-blue-500' : 'border-[#00ff55]'
+                            }`}>
+                                {feedbackModal.type === 'error' ? <AlertCircle size={56} className="text-red-500 mx-auto mb-4 animate-bounce"/> :
+                                 feedbackModal.type === 'info' ? <Info size={56} className="text-blue-500 mx-auto mb-4 animate-pulse"/> :
+                                 <CheckCircle size={56} className="text-[#00ff55] mx-auto mb-4 animate-bounce"/>}
+                                
+                                <h3 className={`font-black text-xl italic mb-2 ${
+                                    feedbackModal.type === 'error' ? 'text-red-500' : 
+                                    feedbackModal.type === 'info' ? 'text-blue-500' : 'text-white'
+                                }`}>{feedbackModal.title}</h3>
+                                
+                                <p className="text-gray-300 text-sm mb-6">{feedbackModal.message}</p>
+                                
+                                <button 
+                                    onClick={() => setFeedbackModal({ ...feedbackModal, show: false })} 
+                                    className={`w-full font-black py-3 rounded-lg transition-colors uppercase tracking-widest ${
+                                        feedbackModal.type === 'error' ? 'bg-red-600 text-white hover:bg-red-500' : 
+                                        feedbackModal.type === 'info' ? 'bg-blue-600 text-white hover:bg-blue-500' : 'bg-[#00ff55] text-black hover:bg-white'
+                                    }`}
+                                >
+                                    ENTENDIDO
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
