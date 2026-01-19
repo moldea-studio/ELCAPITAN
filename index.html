@@ -87,7 +87,7 @@
             Link as LinkIcon, User, LogOut, Mail, Lock, Trash2, Ban, Trophy, 
             Activity, ArrowLeft, HelpCircle, FileText, Lock as LockIcon, Bell, 
             CheckCircle, XCircle, Send, Crown, UserPlus, Share2, Edit2, Save, MinusCircle,
-            Home, Zap, ClipboardList, AlertTriangle, Download, UserCheck, UserX, Clock, MessageCircle, Beer, Flame, Banknote, Image as ImageIcon, Camera, ChevronDown as ChevDown, ChevronUp as ChevUp, Info, Check, X as XIcon
+            Home, Zap, ClipboardList, AlertTriangle, Download, UserCheck, UserX, Clock, MessageCircle, Beer, Flame, Banknote, Image as ImageIcon, Camera, ChevronDown as ChevDown, ChevronUp as ChevUp, Info, Check, X as XIcon, Inbox
         } from 'https://esm.sh/lucide-react@0.294.0';
         
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
@@ -124,13 +124,13 @@
         };
 
         const MATCH_LEVELS = ["Tranqui / Joda 🍻", "Picado Medio ⚽", "A Morir (Competitivo) 🏆"];
-        // NUEVO: GÉNEROS DE PARTIDO
         const MATCH_GENDERS = ["Hombres 🚹", "Mujeres 🚺", "Mixto ⚧️"];
         const POSITIONS_LIST = ["Arquero", "Defensor", "Medio", "Delantero", "Polifuncional"];
         
         // REGLAS DE NEGOCIO
         const DAYS_BETWEEN_UPDATES = 30;
-        const MAX_ACTIVE_APPLICATIONS = 4;
+        const MAX_ACTIVE_APPLICATIONS_PER_USER = 4;
+        const MAX_APPLICATIONS_PER_SLOT = 10; 
 
         const today = new Date().toISOString().split('T')[0];
         const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
@@ -171,9 +171,9 @@
 
         // --- DATOS FICTICIOS (Seeders) ---
         const INITIAL_MATCHES = [
-            { date: yesterdayString, time: '20:00', place: 'Predio El Rincón', zone: 'La Plata (Casco Urbano)', format: 'F5', type: 'player', gender: 'Hombres 🚹', missing: 0, position: 'Arquero', teamName: 'Los Rotos FC', urgent: false, playersSigned: ['dummy_1', 'dummy_2'], level: 'Picado Medio ⚽' },
-            { date: today, time: '21:00', place: 'Club Atl. Villa Elisa', zone: 'Villa Elisa', format: 'F7', type: 'rival', gender: 'Mixto ⚧️', isChallenge: true, stake: 'La cancha ($30.000)', missing: 0, position: 'Equipo Completo', teamName: 'Defensores VE', urgent: true, level: 'A Morir (Competitivo) 🏆' },
-            { date: tomorrow, time: '19:00', place: 'La Plaza', zone: 'City Bell', format: 'F5', type: 'player', missing: 2, gender: 'Mujeres 🚺', position: 'Defensores', teamName: 'Inter CB', urgent: false, level: 'Tranqui / Joda 🍻' },
+            { date: yesterdayString, time: '20:00', place: 'Predio El Rincón', zone: 'La Plata (Casco Urbano)', format: 'F5', type: 'player', gender: 'Hombres 🚹', missing: 0, position: 'Arquero', teamName: 'Los Rotos FC', urgent: false, playersSigned: ['dummy_1', 'dummy_2'], level: 'Picado Medio ⚽', applicationsCount: 0 },
+            { date: today, time: '21:00', place: 'Club Atl. Villa Elisa', zone: 'Villa Elisa', format: 'F7', type: 'rival', gender: 'Mixto ⚧️', isChallenge: true, stake: 'La cancha ($30.000)', missing: 0, position: 'Equipo Completo', teamName: 'Defensores VE', urgent: true, level: 'A Morir (Competitivo) 🏆', applicationsCount: 2 },
+            { date: tomorrow, time: '19:00', place: 'La Plaza', zone: 'City Bell', format: 'F5', type: 'player', missing: 2, gender: 'Mujeres 🚺', position: 'Defensores', teamName: 'Inter CB', urgent: false, level: 'Tranqui / Joda 🍻', applicationsCount: 5 },
         ];
         const INITIAL_PLAYERS = [
             { uid: 'dummy_1', name: 'Lucho M.', position: 'Arquero', zone: 'Villa Elisa', rating: 4.5, ratingCount: 10, status: 'Disponible', level: 'A Morir (Competitivo) 🏆', gender: 'Hombres 🚹' },
@@ -239,7 +239,6 @@
             const [showMapModal, setShowMapModal] = useState(false);
             const [showRatingModal, setShowRatingModal] = useState(false);
             const [showNotifications, setShowNotifications] = useState(false);
-            
             const [feedbackModal, setFeedbackModal] = useState({ show: false, type: 'success', title: '', message: '' });
             
             // Filter States
@@ -251,12 +250,10 @@
             const [targetPlayer, setTargetPlayer] = useState(null);
             const [newTeamName, setNewTeamName] = useState('');
             const [teamLogoFile, setTeamLogoFile] = useState(null);
-            // NUEVO: 'gender' en publishData
             const [publishData, setPublishData] = useState({ type: 'player', format: 'F5', zone: 'La Plata (Casco Urbano)', place: '', time: '', date: '', level: 'Picado Medio ⚽', gender: 'Hombres 🚹', isChallenge: false, stake: '' });
             const [neededPositions, setNeededPositions] = useState(['Cualquiera']);
             const [playerPostulationLevel, setPlayerPostulationLevel] = useState('Picado Medio ⚽');
             const [postulationPosition, setPostulationPosition] = useState('Polifuncional'); 
-            // NUEVO: 'playerPostulationGender'
             const [playerPostulationGender, setPlayerPostulationGender] = useState('Hombres 🚹');
             
             // Edit States
@@ -274,7 +271,6 @@
             
             const [confirmation, setConfirmation] = useState({ show: false, text: '', action: null });
             const [deferredPrompt, setDeferredPrompt] = useState(null);
-            
             const [pendingLogoFile, setPendingLogoFile] = useState(null);
 
             // Computed
@@ -290,7 +286,6 @@
             const mySentApplications = invitations.filter(inv => inv.fromUserId === user?.uid && inv.type === 'match_request' && inv.status === 'pending');
 
             const isCaptain = myTeam && myTeam.captainId === user?.uid;
-            
             const myPlayerProfile = players.find(p => user && p.uid === user.uid);
 
             const handleAddSlot = () => setNeededPositions([...neededPositions, 'Cualquiera']);
@@ -457,9 +452,11 @@
                 } else { setShowInstallModal(true); }
             };
 
+            // --- NUEVO SISTEMA: APLICAR A PARTIDO (SOLICITUD) ---
             const handleApplyMatch = async (match) => {
                 if (!user) return setShowLoginModal(true);
                 
+                // Si ya es miembro (aceptado), puede salir.
                 if (match.playersSigned?.includes(user.uid)) {
                      const ref = doc(db, 'artifacts', appId, 'public', 'data', 'matches', match.id);
                      try {
@@ -468,16 +465,27 @@
                      return;
                 }
 
-                if (mySentApplications.length >= MAX_ACTIVE_APPLICATIONS) {
-                    setFeedbackModal({ show: true, type: 'error', title: 'LÍMITE ALCANZADO', message: `Ya tienes ${MAX_ACTIVE_APPLICATIONS} solicitudes pendientes. Espera a que te respondan.` });
+                // VALIDACIÓN 1: LÍMITE DE 4 SOLICITUDES ACTIVAS POR USUARIO
+                if (mySentApplications.length >= MAX_ACTIVE_APPLICATIONS_PER_USER) {
+                    setFeedbackModal({ show: true, type: 'error', title: 'LÍMITE ALCANZADO', message: `Ya tienes ${MAX_ACTIVE_APPLICATIONS_PER_USER} solicitudes pendientes. Espera a que te respondan.` });
                     return;
                 }
 
+                // VALIDACIÓN 2: LÍMITE DE SOLICITUDES POR PARTIDO (10 x PUESTO)
+                const maxRequestsForThisMatch = (match.missing || 1) * MAX_APPLICATIONS_PER_SLOT;
+                if ((match.applicationsCount || 0) >= maxRequestsForThisMatch) {
+                    setFeedbackModal({ show: true, type: 'error', title: 'CUPO LLENO', message: 'Este partido ya tiene demasiadas solicitudes pendientes.' });
+                    return;
+                }
+
+                // VALIDACIÓN 3: YA ENVIASTE SOLICITUD
                 if (invitations.some(i => i.fromUserId === user.uid && i.matchId === match.id && i.status === 'pending')) {
                      setFeedbackModal({ show: true, type: 'info', title: 'YA SOLICITADO', message: 'Ya has enviado una solicitud a este partido.' });
                      return;
                 }
 
+                // ENVIAR SOLICITUD Y ACTUALIZAR CONTADOR DE POSTULACIONES DEL PARTIDO
+                const matchRef = doc(db, 'artifacts', appId, 'public', 'data', 'matches', match.id);
                 try {
                     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'invitations'), {
                         type: 'match_request', 
@@ -490,23 +498,37 @@
                         status: 'pending',
                         createdAt: serverTimestamp()
                     });
+                    await updateDoc(matchRef, { applicationsCount: increment(1) });
                     setFeedbackModal({ show: true, type: 'success', title: 'SOLICITUD ENVIADA', message: 'El organizador ha recibido tu petición.' });
                 } catch(e) { alert(e.message); }
             };
 
-            const handleCancelRequest = async (invitationId) => {
+            // --- CANCELAR SOLICITUD ---
+            const handleCancelRequest = async (invitationId, matchId) => {
                 if (!user) return;
                 try {
                     await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'invitations', invitationId));
+                    // Restamos el contador de postulaciones en el partido
+                    if(matchId) {
+                        const matchRef = doc(db, 'artifacts', appId, 'public', 'data', 'matches', matchId);
+                        await updateDoc(matchRef, { applicationsCount: increment(-1) });
+                    }
                     setFeedbackModal({ show: true, type: 'info', title: 'CANCELADA', message: 'Has cancelado la solicitud.' });
                 } catch (e) { alert(e.message); }
             };
 
+            // --- RESPONDER A SOLICITUD DE PARTIDO ---
             const handleRespondMatchRequest = async (inv, action) => {
                 try {
+                    // 1. Actualizar estado de la invitación
                     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'invitations', inv.id), { status: action });
+                    
+                    // Si aceptamos o rechazamos, ya no es pendiente, bajamos el contador de postulaciones
+                    const matchRef = doc(db, 'artifacts', appId, 'public', 'data', 'matches', inv.matchId);
+                    await updateDoc(matchRef, { applicationsCount: increment(-1) });
+
                     if (action === 'accepted') {
-                        const matchRef = doc(db, 'artifacts', appId, 'public', 'data', 'matches', inv.matchId);
+                        // Si se acepta, ocupamos un lugar en el partido
                         await updateDoc(matchRef, {
                             playersSigned: arrayUnion(inv.fromUserId),
                             missing: increment(-1) 
@@ -526,9 +548,9 @@
                         missing: publishData.type==='rival'?0:neededPositions.length,
                         position: publishData.type==='rival'?'Equipo Completo':neededPositions.join(', '),
                         teamName: myTeam ? myTeam.name : (userProfile?.nickname || user.displayName) + " Team",
-                        urgent: false, playersSigned: [], createdBy: user.uid, createdAt: serverTimestamp()
+                        urgent: false, playersSigned: [], createdBy: user.uid, createdAt: serverTimestamp(),
+                        applicationsCount: 0 // Inicia con 0 postulaciones
                     });
-                    // Resetear el form manteniendo el último género usado por comodidad
                     setPublishData({ ...publishData, place: '', time: '', date: '', isChallenge: false, stake: '' });
                     setNeededPositions(['Cualquiera']);
                     setShowPublishModal(false);
@@ -547,7 +569,7 @@
                         position: postulationPosition, 
                         zone: 'La Plata',
                         level: playerPostulationLevel,
-                        gender: playerPostulationGender, // NUEVO: GÉNERO
+                        gender: playerPostulationGender, 
                         rating: 0, ratingCount: 0, status: 'Disponible', createdAt: serverTimestamp()
                     });
                     setFeedbackModal({ show: true, type: 'success', title: '¡LISTO!', message: 'Te has postulado correctamente.' });
@@ -907,6 +929,9 @@
                                             const pendingInvitation = invitations.find(i => i.fromUserId === user?.uid && i.matchId === m.id && i.status === 'pending');
                                             const isPending = !!pendingInvitation;
                                             
+                                            // NUEVO: CONTADOR VISIBLE PARA TODOS
+                                            const appCount = m.applicationsCount || 0;
+
                                             return (
                                                 <div key={m.id} className="p-3 border-b border-gray-300 flex justify-between items-center bg-white hover:bg-gray-50">
                                                     <div>
@@ -921,13 +946,20 @@
                                                             <span className="text-[9px] bg-gray-200 px-1 rounded text-gray-600">{m.level}</span>
                                                         </div>
                                                         {m.isChallenge && <div className="text-[10px] text-yellow-700 font-bold mt-1">🔥 {m.stake}</div>}
+                                                        
+                                                        {/* NUEVO: CONTADOR DE POSTULACIONES (VISIBLE PARA TODOS) */}
+                                                        {appCount > 0 && (
+                                                            <div className="text-[10px] text-blue-600 font-bold mt-1 flex items-center gap-1">
+                                                                <Inbox size={10}/> {appCount} Postulaciones
+                                                            </div>
+                                                        )}
                                                     </div>
                                                     <div className="flex items-center gap-2">
                                                         {(isAdmin || (user && m.createdBy === user.uid)) && <button onClick={() => { askConfirmation("¿Borrar?", async () => await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'matches', m.id))) }} className="text-red-500 bg-red-100 p-1.5 rounded"><Trash2 size={14}/></button>}
                                                         <button 
                                                             onClick={() => {
                                                                 if (isSigned) handleApplyMatch(m); 
-                                                                else if (isPending) handleCancelRequest(pendingInvitation.id); 
+                                                                else if (isPending) handleCancelRequest(pendingInvitation.id, m.id); 
                                                                 else handleApplyMatch(m);
                                                             }}
                                                             className={`px-3 py-1.5 rounded text-xs font-bold border-b-2 transition-all active:scale-95 ${
@@ -979,14 +1011,12 @@
                                                 <select className="flex-1 text-xs p-1 rounded border" value={postulationPosition} onChange={e=>setPostulationPosition(e.target.value)}>
                                                     {POSITIONS_LIST.map(pos => <option key={pos} value={pos}>{pos}</option>)}
                                                 </select>
-                                                 {/* NUEVO SELECTOR DE GÉNERO PARA JUGADOR LIBRE */}
+                                                <select className="flex-1 text-xs p-1 rounded border" value={playerPostulationLevel} onChange={e=>setPlayerPostulationLevel(e.target.value)}>
+                                                    {MATCH_LEVELS.map(l=><option key={l} value={l}>{l}</option>)}
+                                                </select>
+                                                {/* NUEVO SELECTOR DE GÉNERO PARA JUGADOR LIBRE */}
                                                 <select className="flex-1 text-xs p-1 rounded border" value={playerPostulationGender} onChange={e=>setPlayerPostulationGender(e.target.value)}>
                                                     {MATCH_GENDERS.map(g => <option key={g} value={g}>{g}</option>)}
-                                                </select>
-                                            </div>
-                                            <div className="mb-2">
-                                                <select className="w-full text-xs p-1 rounded border" value={playerPostulationLevel} onChange={e=>setPlayerPostulationLevel(e.target.value)}>
-                                                    {MATCH_LEVELS.map(l=><option key={l} value={l}>{l}</option>)}
                                                 </select>
                                             </div>
                                             <button onClick={handleJoinAsPlayer} className="w-full bg-[#212121] text-[#00ff55] font-bold text-xs py-2 rounded uppercase border border-gray-600 hover:border-[#00ff55]">Postularme</button>
@@ -1255,7 +1285,7 @@
                                                             <div key={p.id} className="text-xs text-gray-300 bg-gray-900 p-2 rounded flex justify-between items-center border-l-2 border-yellow-500">
                                                                 <div>
                                                                     <span className="text-white font-bold">{p.position}</span>
-                                                                    <div className="text-gray-500">Zona: {p.zone} | {p.gender}</div>
+                                                                    <div className="text-gray-500">Zona: {p.zone}</div>
                                                                 </div>
                                                                 <button onClick={() => handleDeletePlayer(p.id)} className="text-red-500 hover:text-white"><Trash2 size={14}/></button>
                                                             </div>
@@ -1320,20 +1350,11 @@
                                     </div>
                                     
                                     {/* SELECCIÓN DE NIVEL */}
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div className="space-y-1">
-                                            <label className="text-gray-400 text-xs font-bold ml-1">Nivel</label>
-                                            <select value={publishData.level} onChange={(e) => setPublishData({...publishData, level: e.target.value})} className="w-full bg-black/50 border border-gray-700 text-white rounded py-2 px-2 text-sm outline-none focus:border-[#00ff55]">
-                                                {MATCH_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
-                                            </select>
-                                        </div>
-                                        {/* NUEVO: SELECCIÓN DE GÉNERO EN PUBLICAR PARTIDO */}
-                                        <div className="space-y-1">
-                                            <label className="text-gray-400 text-xs font-bold ml-1">Género</label>
-                                            <select value={publishData.gender} onChange={(e) => setPublishData({...publishData, gender: e.target.value})} className="w-full bg-black/50 border border-gray-700 text-white rounded py-2 px-2 text-sm outline-none focus:border-[#00ff55]">
-                                                {MATCH_GENDERS.map(g => <option key={g} value={g}>{g}</option>)}
-                                            </select>
-                                        </div>
+                                    <div className="space-y-1">
+                                        <label className="text-gray-400 text-xs font-bold ml-1">Nivel / Intensidad</label>
+                                        <select value={publishData.level} onChange={(e) => setPublishData({...publishData, level: e.target.value})} className="w-full bg-black/50 border border-gray-700 text-white rounded py-2 px-2 text-sm outline-none focus:border-[#00ff55]">
+                                            {MATCH_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+                                        </select>
                                     </div>
 
                                     {/* OPCIONES DE RIVAL (DESAFÍO) */}
