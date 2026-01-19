@@ -226,9 +226,10 @@
             const [loading, setLoading] = useState(true);
             const [submitting, setSubmitting] = useState(false);
             const [uploadingLogo, setUploadingLogo] = useState(false);
-            const [showStatsDetails, setShowStatsDetails] = useState(false);
             
             // UI States
+            const [showStatsDetails, setShowStatsDetails] = useState(false);
+            const [historyEnabled, setHistoryEnabled] = useState(false); // NUEVO: CONTROL DE CARGA DE HISTORIAL
             const [showLoginModal, setShowLoginModal] = useState(false);
             const [showInviteModal, setShowInviteModal] = useState(false);
             const [showCreateTeamModal, setShowCreateTeamModal] = useState(false);
@@ -275,9 +276,12 @@
 
             // Computed
             const isAdmin = user && ADMIN_EMAILS.includes(user.email);
-            const myOrganizedMatches = user ? matches.filter(m => m.createdBy === user.uid) : [];
-            const matchesJoined = user ? matches.filter(m => m.playersSigned && m.playersSigned.includes(user.uid)).length : 0; 
-            const playedMatchesList = user ? matches.filter(m => m.playersSigned && m.playersSigned.includes(user.uid)) : [];
+            // ESTAS LISTAS AHORA DEPENDEN DE LA CARGA DE HISTORIAL
+            const myOrganizedMatches = historyEnabled ? myFullHistoryMatches : matches.filter(m => m.createdBy === user?.uid); 
+            // Para "Jugados" y "Postulaciones" usamos las listas completas si están cargadas, sino las parciales del feed
+            const matchesJoined = historyEnabled ? myFullJoinedMatches.length : (user ? matches.filter(m => m.playersSigned && m.playersSigned.includes(user.uid)).length : 0);
+            const playedMatchesListDisplay = historyEnabled ? myFullJoinedMatches : (user ? matches.filter(m => m.playersSigned && m.playersSigned.includes(user.uid)) : []);
+            
             const myPostulations = user ? players.filter(p => p.uid === user.uid) : [];
             const userRating = userProfile?.rating || 0;
             const userRatingCount = userProfile?.ratingCount || 0;
@@ -326,8 +330,10 @@
                 if(userProfile?.position) setPostulationPosition(userProfile.position);
             }, [userProfile]);
 
+            // LISTENER DE MI HISTORIAL COMPLETO (BAJO DEMANDA)
             useEffect(() => {
-                if(!user || !db || user.isAnonymous) return;
+                if(!user || !db || user.isAnonymous || !historyEnabled) return; // Solo carga si se activa
+                
                 const qCreated = query(collection(db, 'artifacts', appId, 'public', 'data', 'matches'), where('createdBy', '==', user.uid));
                 const unsubCreated = onSnapshot(qCreated, (s) => {
                     setMyFullHistoryMatches(s.docs.map(d => ({id: d.id, ...d.data()})).sort((a,b) => new Date(b.date) - new Date(a.date)));
@@ -337,7 +343,7 @@
                     setMyFullJoinedMatches(s.docs.map(d => ({id: d.id, ...d.data()})).sort((a,b) => new Date(b.date) - new Date(a.date)));
                 });
                 return () => { unsubCreated(); unsubJoined(); }
-            }, [user, db]);
+            }, [user, db, historyEnabled]);
 
             useEffect(() => {
                 if(!user || !db) return;
@@ -456,7 +462,6 @@
             const handleApplyMatch = async (match) => {
                 if (!user) return setShowLoginModal(true);
                 
-                // Si ya es miembro (aceptado), puede salir.
                 if (match.playersSigned?.includes(user.uid)) {
                      const ref = doc(db, 'artifacts', appId, 'public', 'data', 'matches', match.id);
                      try {
@@ -465,26 +470,22 @@
                      return;
                 }
 
-                // VALIDACIÓN 1: LÍMITE DE 4 SOLICITUDES ACTIVAS POR USUARIO
                 if (mySentApplications.length >= MAX_ACTIVE_APPLICATIONS_PER_USER) {
                     setFeedbackModal({ show: true, type: 'error', title: 'LÍMITE ALCANZADO', message: `Ya tienes ${MAX_ACTIVE_APPLICATIONS_PER_USER} solicitudes pendientes. Espera a que te respondan.` });
                     return;
                 }
 
-                // VALIDACIÓN 2: LÍMITE DE SOLICITUDES POR PARTIDO (10 x PUESTO)
                 const maxRequestsForThisMatch = (match.missing || 1) * MAX_APPLICATIONS_PER_SLOT;
                 if ((match.applicationsCount || 0) >= maxRequestsForThisMatch) {
                     setFeedbackModal({ show: true, type: 'error', title: 'CUPO LLENO', message: 'Este partido ya tiene demasiadas solicitudes pendientes.' });
                     return;
                 }
 
-                // VALIDACIÓN 3: YA ENVIASTE SOLICITUD
                 if (invitations.some(i => i.fromUserId === user.uid && i.matchId === match.id && i.status === 'pending')) {
                      setFeedbackModal({ show: true, type: 'info', title: 'YA SOLICITADO', message: 'Ya has enviado una solicitud a este partido.' });
                      return;
                 }
 
-                // ENVIAR SOLICITUD Y ACTUALIZAR CONTADOR DE POSTULACIONES DEL PARTIDO
                 const matchRef = doc(db, 'artifacts', appId, 'public', 'data', 'matches', match.id);
                 try {
                     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'invitations'), {
@@ -503,12 +504,10 @@
                 } catch(e) { alert(e.message); }
             };
 
-            // --- CANCELAR SOLICITUD ---
             const handleCancelRequest = async (invitationId, matchId) => {
                 if (!user) return;
                 try {
                     await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'invitations', invitationId));
-                    // Restamos el contador de postulaciones en el partido
                     if(matchId) {
                         const matchRef = doc(db, 'artifacts', appId, 'public', 'data', 'matches', matchId);
                         await updateDoc(matchRef, { applicationsCount: increment(-1) });
@@ -517,18 +516,14 @@
                 } catch (e) { alert(e.message); }
             };
 
-            // --- RESPONDER A SOLICITUD DE PARTIDO ---
             const handleRespondMatchRequest = async (inv, action) => {
                 try {
-                    // 1. Actualizar estado de la invitación
                     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'invitations', inv.id), { status: action });
                     
-                    // Si aceptamos o rechazamos, ya no es pendiente, bajamos el contador de postulaciones
                     const matchRef = doc(db, 'artifacts', appId, 'public', 'data', 'matches', inv.matchId);
                     await updateDoc(matchRef, { applicationsCount: increment(-1) });
 
                     if (action === 'accepted') {
-                        // Si se acepta, ocupamos un lugar en el partido
                         await updateDoc(matchRef, {
                             playersSigned: arrayUnion(inv.fromUserId),
                             missing: increment(-1) 
@@ -549,7 +544,7 @@
                         position: publishData.type==='rival'?'Equipo Completo':neededPositions.join(', '),
                         teamName: myTeam ? myTeam.name : (userProfile?.nickname || user.displayName) + " Team",
                         urgent: false, playersSigned: [], createdBy: user.uid, createdAt: serverTimestamp(),
-                        applicationsCount: 0 // Inicia con 0 postulaciones
+                        applicationsCount: 0 
                     });
                     setPublishData({ ...publishData, place: '', time: '', date: '', isChallenge: false, stake: '' });
                     setNeededPositions(['Cualquiera']);
@@ -639,7 +634,6 @@
                 e.target.value = null;
             };
 
-            // --- LÓGICA DE ACTUALIZACIÓN DE NOMBRE DE EQUIPO (1 MES) ---
             const confirmUpdateTeamName = async () => {
                 if (!teamNameInput.trim()) return;
                 await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'teams', myTeam.id), { name: teamNameInput, searchName: teamNameInput.toLowerCase(), lastNameUpdate: serverTimestamp() });
@@ -918,7 +912,7 @@
                                     <div className="bg-gradient-to-r from-[#1b4d2e] to-[#2e7d32] px-4 py-3 rounded-t-lg border-b-2 border-[#4caf50] flex flex-wrap gap-2 justify-between items-center text-white">
                                         <h2 className="font-bold flex items-center gap-2"><Calendar size={20} className="text-[#00ff55]"/> PARTIDOS</h2>
                                         <div className="flex gap-2">
-                                            <select className="bg-black/30 rounded text-xs p-1 outline-none border border-white/20" onChange={e => setFormatFilter(e.target.value)}><option value="Todos">Fmt: Todos</option><option value="F5">F5</option><option value="F7">F7</option></select>
+                                            <select className="bg-black/30 rounded text-xs p-1 outline-none border border-white/20" onChange={e => setFormatFilter(e.target.value)}><option value="Todos">Fmt: Todos</option><option value="F5">F5</option><option value="F7">F7</option><option value="F9">F9</option><option value="F11">F11</option></select>
                                             <select className="bg-black/30 rounded text-xs p-1 outline-none border border-white/20" onChange={e => setZoneFilter(e.target.value)}><option value="Todas">Zonas: Todas</option><ZoneSelectOptions/></select>
                                         </div>
                                     </div>
@@ -1033,13 +1027,16 @@
                                     <h2 className="text-2xl font-black italic text-[#00ff55] mb-4">MI EQUIPO</h2>
                                     {myTeam ? (
                                         <div>
+                                            {/* Cabecera del Equipo con LOGO EDITABLE */}
                                             <div className="flex items-center justify-center gap-3 mb-6 border-b border-gray-700 pb-4 relative">
                                                  <div className="relative group w-24 h-24">
+                                                     {/* FEEDBACK DE CARGA: SPINNER OVERLAY */}
                                                      {uploadingLogo && (
                                                          <div className="absolute inset-0 bg-black/70 rounded-full flex items-center justify-center z-40">
                                                              <svg className="w-8 h-8 text-[#00ff55] animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>
                                                          </div>
                                                      )}
+                                                     
                                                      {myTeam.logoUrl ? (
                                                          <img src={myTeam.logoUrl} alt="Logo" className="w-full h-full rounded-full object-cover border-4 border-[#00ff55] shadow-lg"/>
                                                      ) : (
@@ -1047,6 +1044,7 @@
                                                              <Shield size={40} className="text-gray-400"/>
                                                          </div>
                                                      )}
+                                                     {/* FIX: Botón de cámara totalmente visible y "fuera" del círculo */}
                                                      {isCaptain && !uploadingLogo && (
                                                          <label className="absolute -bottom-1 -right-1 bg-[#00ff55] text-black p-2 rounded-full cursor-pointer hover:bg-white hover:scale-110 transition-all shadow-xl border-2 border-black z-50 flex items-center justify-center">
                                                              <Camera size={16} />
@@ -1055,6 +1053,7 @@
                                                      )}
                                                  </div>
                                                 <div className="text-left ml-4 flex flex-col justify-center">
+                                                    {/* NOMBRE DE EQUIPO EDITABLE */}
                                                     {isEditingTeamName ? (
                                                         <div className="flex items-center gap-2 mb-1">
                                                             <input 
@@ -1079,6 +1078,7 @@
                                                 </div>
                                             </div>
 
+                                            {/* Botonera de Acciones Rápidas */}
                                             <div className="grid grid-cols-3 gap-2 mb-6">
                                                 <button onClick={() => setShowScoutModal(true)} className="bg-gray-800 border border-gray-600 p-2 rounded hover:bg-gray-700 flex flex-col items-center gap-1">
                                                     <Search size={18} className="text-[#00ff55]"/>
@@ -1094,6 +1094,7 @@
                                                 </button>
                                             </div>
                                             
+                                            {/* Lista de Miembros (Restaurada) */}
                                             <div className="space-y-2 mb-6 text-left">
                                                 <h4 className="text-xs font-bold text-gray-500 uppercase mb-2 pl-1">Plantel</h4>
                                                 {myTeam.members?.map(m => (
@@ -1118,6 +1119,8 @@
                                                     </div>
                                                 ))}
                                             </div>
+
+                                            {/* Zona de Peligro */}
                                             <div className="border-t border-gray-800 pt-4 mt-8">
                                                 {isCaptain ? (
                                                     <button onClick={handleDeleteTeam} className="text-red-500 text-xs font-bold border border-red-900/50 bg-red-900/10 px-4 py-2 rounded hover:bg-red-900/30 w-full flex items-center justify-center gap-2">
@@ -1225,77 +1228,88 @@
                                 </div>
 
                                 <div className="mt-4">
-                                    <button 
-                                        onClick={() => setShowStatsDetails(!showStatsDetails)} 
-                                        className="w-full flex items-center justify-between bg-gray-800 p-3 rounded border border-gray-700 text-white font-bold text-sm hover:bg-gray-700 transition-colors"
-                                    >
-                                        <span>VER HISTORIAL COMPLETO</span>
-                                        {showStatsDetails ? <ChevUp size={16}/> : <ChevDown size={16}/>}
-                                    </button>
-
-                                    {showStatsDetails && (
-                                        <div className="mt-2 bg-[#1a1a1a] border border-gray-800 rounded p-3 text-left space-y-4 modal-animate">
-                                            <p className="text-[10px] text-gray-500 italic text-center">Mostrando todo tu historial</p>
-                                            <div>
-                                                <h4 className="text-[#00ff55] text-xs font-black uppercase mb-2 border-b border-gray-800 pb-1">Organizados por mí ({myFullHistoryMatches.length})</h4>
-                                                {myFullHistoryMatches.length > 0 ? (
-                                                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                                                        {myFullHistoryMatches.map(m => (
-                                                            <div key={m.id} className="text-xs text-gray-300 bg-gray-900 p-2 rounded flex justify-between items-center border-l-2 border-[#00ff55]">
-                                                                <div>
-                                                                    <div className="font-bold text-white">{m.teamName}</div>
-                                                                    <div className="text-[10px] text-gray-500">{m.date} {m.time} | {m.place}</div>
-                                                                </div>
-                                                                <div className="text-right">
-                                                                    <span className="block bg-gray-800 px-1.5 py-0.5 rounded text-[9px] mb-1">{m.format}</span>
-                                                                    <button onClick={() => handleDeleteMatch(m.id)} className="text-red-500 hover:text-white p-1"><Trash2 size={12}/></button>
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                ) : (
-                                                    <p className="text-gray-600 text-xs italic">Aún no has organizado partidos.</p>
-                                                )}
-                                            </div>
-
-                                            <div>
-                                                <h4 className="text-white text-xs font-black uppercase mb-2 border-b border-gray-800 pb-1">Partidos donde juego ({myFullJoinedMatches.length})</h4>
-                                                {myFullJoinedMatches.length > 0 ? (
-                                                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                                                        {myFullJoinedMatches.map(m => (
-                                                            <div key={m.id} className="text-xs text-gray-300 bg-gray-900 p-2 rounded flex justify-between items-center border-l-2 border-blue-500">
-                                                                <div>
-                                                                    <span className="text-white font-bold">{m.teamName}</span>
-                                                                    <div className="text-gray-500">{m.date} {m.time} | {m.place}</div>
-                                                                </div>
-                                                                <span className="bg-gray-800 px-2 py-0.5 rounded text-[9px]">{m.format}</span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                ) : (
-                                                    <p className="text-gray-600 text-xs italic">Aún no te has anotado en partidos.</p>
-                                                )}
-                                            </div>
-
-                                            <div>
-                                                <h4 className="text-white text-xs font-black uppercase mb-2 border-b border-gray-800 pb-1">Mis Postulaciones ({myPostulations.length})</h4>
-                                                {myPostulations.length > 0 ? (
-                                                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                                                        {myPostulations.map(p => (
-                                                            <div key={p.id} className="text-xs text-gray-300 bg-gray-900 p-2 rounded flex justify-between items-center border-l-2 border-yellow-500">
-                                                                <div>
-                                                                    <span className="text-white font-bold">{p.position}</span>
-                                                                    <div className="text-gray-500">Zona: {p.zone}</div>
-                                                                </div>
-                                                                <button onClick={() => handleDeletePlayer(p.id)} className="text-red-500 hover:text-white"><Trash2 size={14}/></button>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                ) : (
-                                                    <p className="text-gray-600 text-xs italic">No estás postulado como libre.</p>
-                                                )}
-                                            </div>
+                                    {!historyEnabled ? (
+                                        <div className="text-center p-4">
+                                            <p className="text-gray-400 text-xs mb-2">Para ahorrar datos, el historial antiguo no se carga automáticamente.</p>
+                                            <button onClick={() => setHistoryEnabled(true)} className="bg-[#00ff55] text-black font-bold px-4 py-2 rounded">
+                                                📥 CARGAR HISTORIAL COMPLETO
+                                            </button>
                                         </div>
+                                    ) : (
+                                        <>
+                                        <button 
+                                            onClick={() => setShowStatsDetails(!showStatsDetails)} 
+                                            className="w-full flex items-center justify-between bg-gray-800 p-3 rounded border border-gray-700 text-white font-bold text-sm hover:bg-gray-700 transition-colors"
+                                        >
+                                            <span>VER HISTORIAL COMPLETO</span>
+                                            {showStatsDetails ? <ChevUp size={16}/> : <ChevDown size={16}/>}
+                                        </button>
+
+                                        {showStatsDetails && (
+                                            <div className="mt-2 bg-[#1a1a1a] border border-gray-800 rounded p-3 text-left space-y-4 modal-animate">
+                                                <p className="text-[10px] text-gray-500 italic text-center">Mostrando todo tu historial</p>
+                                                <div>
+                                                    <h4 className="text-[#00ff55] text-xs font-black uppercase mb-2 border-b border-gray-800 pb-1">Organizados por mí ({myFullHistoryMatches.length})</h4>
+                                                    {myFullHistoryMatches.length > 0 ? (
+                                                        <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                                                            {myFullHistoryMatches.map(m => (
+                                                                <div key={m.id} className="text-xs text-gray-300 bg-gray-900 p-2 rounded flex justify-between items-center border-l-2 border-[#00ff55]">
+                                                                    <div>
+                                                                        <div className="font-bold text-white">{m.teamName}</div>
+                                                                        <div className="text-[10px] text-gray-500">{m.date} {m.time} | {m.place}</div>
+                                                                    </div>
+                                                                    <div className="text-right">
+                                                                        <span className="block bg-gray-800 px-1.5 py-0.5 rounded text-[9px] mb-1">{m.format}</span>
+                                                                        <button onClick={() => handleDeleteMatch(m.id)} className="text-red-500 hover:text-white p-1"><Trash2 size={12}/></button>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <p className="text-gray-600 text-xs italic">Aún no has organizado partidos.</p>
+                                                    )}
+                                                </div>
+
+                                                <div>
+                                                    <h4 className="text-white text-xs font-black uppercase mb-2 border-b border-gray-800 pb-1">Partidos donde juego ({myFullJoinedMatches.length})</h4>
+                                                    {myFullJoinedMatches.length > 0 ? (
+                                                        <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                                                            {myFullJoinedMatches.map(m => (
+                                                                <div key={m.id} className="text-xs text-gray-300 bg-gray-900 p-2 rounded flex justify-between items-center border-l-2 border-blue-500">
+                                                                    <div>
+                                                                        <span className="text-white font-bold">{m.teamName}</span>
+                                                                        <div className="text-gray-500">{m.date} {m.time} | {m.place}</div>
+                                                                    </div>
+                                                                    <span className="bg-gray-800 px-2 py-0.5 rounded text-[9px]">{m.format}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <p className="text-gray-600 text-xs italic">Aún no te has anotado en partidos.</p>
+                                                    )}
+                                                </div>
+
+                                                <div>
+                                                    <h4 className="text-white text-xs font-black uppercase mb-2 border-b border-gray-800 pb-1">Mis Postulaciones ({myPostulations.length})</h4>
+                                                    {myPostulations.length > 0 ? (
+                                                        <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                                                            {myPostulations.map(p => (
+                                                                <div key={p.id} className="text-xs text-gray-300 bg-gray-900 p-2 rounded flex justify-between items-center border-l-2 border-yellow-500">
+                                                                    <div>
+                                                                        <span className="text-white font-bold">{p.position}</span>
+                                                                        <div className="text-gray-500">Zona: {p.zone}</div>
+                                                                    </div>
+                                                                    <button onClick={() => handleDeletePlayer(p.id)} className="text-red-500 hover:text-white"><Trash2 size={14}/></button>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <p className="text-gray-600 text-xs italic">No estás postulado como libre.</p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                        </>
                                     )}
                                 </div>
 
