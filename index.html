@@ -45,7 +45,8 @@
 
     <!-- Estilos base -->
     <style>
-        body { background-color: #111827; color: #e5e7eb; font-family: sans-serif; padding-bottom: 100px; }
+        /* FIX: Fondo cambiado a NEGRO NEUTRO para eliminar el tono azulado anterior (#111827) */
+        body { background-color: #121212; color: #e5e7eb; font-family: sans-serif; padding-bottom: 100px; }
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #1a1a1a; }
         ::-webkit-scrollbar-thumb { background: #00ff55; border-radius: 4px; }
@@ -134,8 +135,9 @@
 
         const today = new Date().toISOString().split('T')[0];
         const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
-        const yesterdayString = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-        const sevenDaysAgoString = new Date(Date.now() - 86400000 * 7).toISOString().split('T')[0];
+        // Aquí definimos las fechas de corte:
+        const yesterdayString = new Date(Date.now() - 86400000).toISOString().split('T')[0]; // Para ocultar en feed
+        const sevenDaysAgoString = new Date(Date.now() - 86400000 * 7).toISOString().split('T')[0]; // Para limitar lecturas DB
         const maxPublishDate = new Date(Date.now() + 86400000 * 7).toISOString().split('T')[0];
 
         // --- COMPONENTES AUXILIARES ---
@@ -153,11 +155,11 @@
             </button>
         );
 
-        // FIX: Mejor estilo para los títulos de zonas en móviles usando style inline y clases fuertes
+        // FIX: Forzamos mayúsculas (toUpperCase) en el label para móviles que ignoran CSS
         const ZoneSelectOptions = () => (<>{Object.entries(ZONES_BY_AREA).map(([region, zones]) => (
             <optgroup 
                 key={region} 
-                label={region} 
+                label={region.toUpperCase()} 
                 className="bg-gray-900 text-white font-black uppercase tracking-widest text-sm"
                 style={{ fontWeight: '900', color: '#ffffff', backgroundColor: '#000000' }}
             >
@@ -471,7 +473,6 @@
                 } else { setShowInstallModal(true); }
             };
 
-            // --- NUEVO SISTEMA: APLICAR A PARTIDO (SOLICITUD) ---
             const handleApplyMatch = async (match) => {
                 if (!user) return setShowLoginModal(true);
                 
@@ -1043,7 +1044,6 @@
                                                              <svg className="w-8 h-8 text-[#00ff55] animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>
                                                          </div>
                                                      )}
-                                                     
                                                      {myTeam.logoUrl ? (
                                                          <img src={myTeam.logoUrl} alt="Logo" className="w-full h-full rounded-full object-cover border-4 border-[#00ff55] shadow-lg"/>
                                                      ) : (
