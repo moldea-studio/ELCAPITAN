@@ -153,7 +153,17 @@
             </button>
         );
 
-        const ZoneSelectOptions = () => (<>{Object.entries(ZONES_BY_AREA).map(([region, zones]) => (<optgroup key={region} label={region} className="bg-gray-800 text-gray-300 font-bold">{zones.map(z => <option key={z} value={z} className="bg-gray-700 font-normal">{z}</option>)}</optgroup>))}</>);
+        // FIX: Mejor estilo para los títulos de zonas en móviles usando style inline y clases fuertes
+        const ZoneSelectOptions = () => (<>{Object.entries(ZONES_BY_AREA).map(([region, zones]) => (
+            <optgroup 
+                key={region} 
+                label={region} 
+                className="bg-gray-900 text-white font-black uppercase tracking-widest text-sm"
+                style={{ fontWeight: '900', color: '#ffffff', backgroundColor: '#000000' }}
+            >
+                {zones.map(z => <option key={z} value={z} className="bg-gray-800 font-normal text-gray-300 pl-4">{z}</option>)}
+            </optgroup>
+        ))}</>);
 
         const StarRating = ({ rating }) => {
             return (
@@ -226,10 +236,12 @@
             const [loading, setLoading] = useState(true);
             const [submitting, setSubmitting] = useState(false);
             const [uploadingLogo, setUploadingLogo] = useState(false);
+            const [showStatsDetails, setShowStatsDetails] = useState(false);
             
             // UI States
-            const [showStatsDetails, setShowStatsDetails] = useState(false);
-            const [historyEnabled, setHistoryEnabled] = useState(false); // NUEVO: CONTROL DE CARGA DE HISTORIAL
+            // FIX: Declaramos historyEnabled AQUÍ, ANTES de usarlo en "Computed"
+            const [historyEnabled, setHistoryEnabled] = useState(false);
+
             const [showLoginModal, setShowLoginModal] = useState(false);
             const [showInviteModal, setShowInviteModal] = useState(false);
             const [showCreateTeamModal, setShowCreateTeamModal] = useState(false);
@@ -240,6 +252,7 @@
             const [showMapModal, setShowMapModal] = useState(false);
             const [showRatingModal, setShowRatingModal] = useState(false);
             const [showNotifications, setShowNotifications] = useState(false);
+            
             const [feedbackModal, setFeedbackModal] = useState({ show: false, type: 'success', title: '', message: '' });
             
             // Filter States
@@ -272,13 +285,13 @@
             
             const [confirmation, setConfirmation] = useState({ show: false, text: '', action: null });
             const [deferredPrompt, setDeferredPrompt] = useState(null);
+            
             const [pendingLogoFile, setPendingLogoFile] = useState(null);
 
             // Computed
             const isAdmin = user && ADMIN_EMAILS.includes(user.email);
-            // ESTAS LISTAS AHORA DEPENDEN DE LA CARGA DE HISTORIAL
+            // Ahora historyEnabled ya existe cuando se ejecuta esto
             const myOrganizedMatches = historyEnabled ? myFullHistoryMatches : matches.filter(m => m.createdBy === user?.uid); 
-            // Para "Jugados" y "Postulaciones" usamos las listas completas si están cargadas, sino las parciales del feed
             const matchesJoined = historyEnabled ? myFullJoinedMatches.length : (user ? matches.filter(m => m.playersSigned && m.playersSigned.includes(user.uid)).length : 0);
             const playedMatchesListDisplay = historyEnabled ? myFullJoinedMatches : (user ? matches.filter(m => m.playersSigned && m.playersSigned.includes(user.uid)) : []);
             
@@ -291,7 +304,7 @@
 
             const isCaptain = myTeam && myTeam.captainId === user?.uid;
             const myPlayerProfile = players.find(p => user && p.uid === user.uid);
-
+            
             const handleAddSlot = () => setNeededPositions([...neededPositions, 'Cualquiera']);
             const handleRemoveSlot = (index) => setNeededPositions(neededPositions.filter((_, i) => i !== index));
             const handleSlotChange = (index, value) => {
@@ -332,7 +345,7 @@
 
             // LISTENER DE MI HISTORIAL COMPLETO (BAJO DEMANDA)
             useEffect(() => {
-                if(!user || !db || user.isAnonymous || !historyEnabled) return; // Solo carga si se activa
+                if(!user || !db || user.isAnonymous || !historyEnabled) return; 
                 
                 const qCreated = query(collection(db, 'artifacts', appId, 'public', 'data', 'matches'), where('createdBy', '==', user.uid));
                 const unsubCreated = onSnapshot(qCreated, (s) => {
@@ -571,7 +584,6 @@
                 } catch(err) { alert("Error: " + err.message); } finally { setSubmitting(false); }
             };
 
-            // --- LÓGICA DE ACTUALIZACIÓN DE NICKNAME (1 MES) ---
             const confirmUpdateNickname = async () => {
                  await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.uid), { 
                      nickname: nicknameInput,
@@ -584,14 +596,11 @@
 
             const handleUpdateNickname = () => {
                 if(!user || !nicknameInput.trim()) return;
-                
                 const { available, daysLeft } = checkUpdateAvailability(userProfile?.lastNicknameUpdate);
-                
                 if (!available) {
                     setFeedbackModal({ show: true, type: 'error', title: 'ESPERA UN POCO', message: `Solo puedes cambiar tu apodo una vez cada 30 días. Faltan ${daysLeft} días.` });
                     return;
                 }
-
                 askConfirmation("Estás a punto de cambiar tu apodo. Recuerda que debes esperar 30 días para hacerlo nuevamente. ¿Confirmar?", confirmUpdateNickname);
             };
 
@@ -605,7 +614,6 @@
                 if (myPlayerProfile) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'players', myPlayerProfile.id), { position: newPos });
             };
             
-            // --- LÓGICA DE ACTUALIZACIÓN DE LOGO (1 MES) ---
             const processTeamLogoUpdate = async () => {
                 if (!pendingLogoFile) return;
                 setUploadingLogo(true);
@@ -874,7 +882,6 @@
                             </div>
                         </div>
 
-                        {/* NOTIFICACIONES */}
                         {showNotifications && (
                             <div className="absolute top-14 right-2 w-72 bg-[#1a1a1a] border border-gray-700 rounded-lg shadow-2xl z-[100]">
                                 <div className="p-3 bg-gray-900 border-b border-gray-800 text-xs font-bold text-gray-400">Notificaciones ({receivedNotifications.length})</div>
@@ -1384,6 +1391,14 @@
                                         </div>
                                     )}
 
+                                    {/* NUEVO: SELECCIÓN DE GÉNERO EN PUBLICAR PARTIDO (Faltaba aquí) */}
+                                    <div className="space-y-1">
+                                        <label className="text-gray-400 text-xs font-bold ml-1">Género</label>
+                                        <select value={publishData.gender} onChange={(e) => setPublishData({...publishData, gender: e.target.value})} className="w-full bg-black/50 border border-gray-700 text-white rounded py-2 px-2 text-sm outline-none focus:border-[#00ff55]">
+                                            {MATCH_GENDERS.map(g => <option key={g} value={g}>{g}</option>)}
+                                        </select>
+                                    </div>
+
                                     <div className="space-y-1">
                                         <label className="text-gray-400 text-xs font-bold ml-1">Fecha (Máx: 1 Semana)</label>
                                         <input 
@@ -1552,7 +1567,7 @@
                                         title="Mapa de Canchas La Plata"
                                         width="100%" 
                                         height="100%" 
-                                        style={{ border: 0, filter: 'invert(90%) hue-rotate(180deg) contrast(1.1) saturate(0.8)' }}
+                                        style={{ border: 0, filter: 'grayscale(1) invert(0.9) contrast(1.2)' }}
                                         loading="lazy" 
                                         allowFullScreen 
                                         src="https://www.google.com/maps/embed?pb=!1m16!1m12!1m3!1d52345.02947230634!2d-57.98909117973686!3d-34.92049409999999!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!2m1!1scanchas%20de%20futbol%20la%20plata!5e0!3m2!1ses!2sar!4v1705546532832!5m2!1ses!2sar">
