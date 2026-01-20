@@ -255,8 +255,9 @@
             
             // ADMIN STATE
             const [adminData, setAdminData] = useState({ totalUsers: 0, allUsersList: [] });
+            const [allTeamsList, setAllTeamsList] = useState([]); // NUEVO: LISTA TOTAL DE EQUIPOS
             
-            // ESTADO PARA EL FILTRO DEL DASHBOARD (NUEVO)
+            // ESTADO PARA EL FILTRO DEL DASHBOARD
             const [dashboardTimeRange, setDashboardTimeRange] = useState('all');
 
             const getFirebaseConfig = () => ({
@@ -361,19 +362,29 @@
 
             // Computed
             const isAdmin = user && ADMIN_EMAILS.includes(user.email);
-            // --- ADMIN: CONTAR USUARIOS REALES ---
+            
+            // --- ADMIN: CONTAR USUARIOS Y EQUIPOS REALES ---
             useEffect(() => {
                 if (!db || !user || !isAdmin) return;
-                const unsub = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'users'), (s) => {
-                     setAdminData({ 
+                
+                // Suscripción Usuarios
+                const unsubUsers = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'users'), (s) => {
+                     setAdminData(prev => ({ 
+                        ...prev,
                         totalUsers: s.size, 
                         allUsersList: s.docs.map(d => ({ uid: d.id, ...d.data() })) 
-                     });
+                     }));
                 });
-                return () => unsub();
+
+                // Suscripción Equipos (NUEVO)
+                const unsubTeams = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'teams'), (s) => {
+                    setAllTeamsList(s.docs.map(d => ({ id: d.id, ...d.data() })));
+                });
+
+                return () => { unsubUsers(); unsubTeams(); };
             }, [db, user, isAdmin]);
 
-            // Sincronizar input de fecha con el perfil (NUEVO)
+            // Sincronizar input de fecha con el perfil
             useEffect(() => {
                 if(userProfile?.birthDate) setBirthDateInput(userProfile.birthDate);
                 if(userProfile?.nickname) setNicknameInput(userProfile.nickname);
@@ -381,7 +392,6 @@
             
             // FIX: LISTAS UNIFICADAS PARA MOSTRAR CORRECTAMENTE EL HISTORIAL O EL FEED
             const myOrganizedMatches = historyEnabled ? myFullHistoryMatches : matches.filter(m => m.createdBy === user?.uid); 
-            // Si el historial está habilitado, usamos la lista completa. Si no, usamos la lista filtrada del feed (solo recientes).
             const myPlayedMatches = historyEnabled ? myFullJoinedMatches : (user ? matches.filter(m => m.playersSigned && m.playersSigned.includes(user.uid)) : []);
             
             // Contadores
@@ -458,7 +468,6 @@
                 });
                 const qJoined = query(collection(db, 'artifacts', appId, 'public', 'data', 'matches'), where('playersSigned', 'array-contains', user.uid));
                 const unsubJoined = onSnapshot(qJoined, (s) => {
-                    // FIX: Safe date sorting
                     setMyFullJoinedMatches(s.docs.map(d => ({id: d.id, ...d.data()})).sort((a,b) => {
                         const dateA = a.date ? new Date(a.date) : new Date(0);
                         const dateB = b.date ? new Date(b.date) : new Date(0);
@@ -591,7 +600,6 @@
 
             const handleApplyMatch = async (match) => {
                 if (!user) return setShowLoginModal(true);
-                
                 if (match.playersSigned?.includes(user.uid)) {
                      const ref = doc(db, 'artifacts', appId, 'public', 'data', 'matches', match.id);
                      try {
@@ -599,23 +607,19 @@
                      } catch(e) { alert(e.message); }
                      return;
                 }
-
                 if (mySentApplications.length >= MAX_ACTIVE_APPLICATIONS_PER_USER) {
                     setFeedbackModal({ show: true, type: 'error', title: 'LÍMITE ALCANZADO', message: `Ya tienes ${MAX_ACTIVE_APPLICATIONS_PER_USER} solicitudes pendientes. Espera a que te respondan.` });
                     return;
                 }
-
                 const maxRequestsForThisMatch = (match.missing || 1) * MAX_APPLICATIONS_PER_SLOT;
                 if ((match.applicationsCount || 0) >= maxRequestsForThisMatch) {
                     setFeedbackModal({ show: true, type: 'error', title: 'CUPO LLENO', message: 'Este partido ya tiene demasiadas solicitudes pendientes.' });
                     return;
                 }
-
                 if (invitations.some(i => i.fromUserId === user.uid && i.matchId === match.id && i.status === 'pending')) {
                      setFeedbackModal({ show: true, type: 'info', title: 'YA SOLICITADO', message: 'Ya has enviado una solicitud a este partido.' });
                      return;
                 }
-
                 const matchRef = doc(db, 'artifacts', appId, 'public', 'data', 'matches', match.id);
                 try {
                     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'invitations'), {
@@ -649,10 +653,8 @@
             const handleRespondMatchRequest = async (inv, action) => {
                 try {
                     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'invitations', inv.id), { status: action });
-                    
                     const matchRef = doc(db, 'artifacts', appId, 'public', 'data', 'matches', inv.matchId);
                     await updateDoc(matchRef, { applicationsCount: increment(-1) });
-
                     if (action === 'accepted') {
                         await updateDoc(matchRef, {
                             playersSigned: arrayUnion(inv.fromUserId),
@@ -1078,12 +1080,12 @@
                                         <div className="text-[10px] text-gray-400 uppercase tracking-widest">Partidos Activos</div>
                                     </div>
                                     <div className="bg-gray-800 p-4 rounded text-center border border-gray-700">
-                                        <div className="text-3xl font-black text-yellow-400">{players.length}</div>
-                                        <div className="text-[10px] text-gray-400 uppercase tracking-widest">Agentes Libres</div>
+                                        <div className="text-3xl font-black text-yellow-400">{allTeamsList.length}</div>
+                                        <div className="text-[10px] text-gray-400 uppercase tracking-widest">Equipos</div>
                                     </div>
                                     <div className="bg-gray-800 p-4 rounded text-center border border-gray-700">
-                                        <div className="text-3xl font-black text-blue-400">{invitations.length}</div>
-                                        <div className="text-[10px] text-gray-400 uppercase tracking-widest">Invitaciones</div>
+                                        <div className="text-3xl font-black text-blue-400">{allTeamsList.length}</div>
+                                        <div className="text-[10px] text-gray-400 uppercase tracking-widest">Capitanes</div>
                                     </div>
                                 </div>
 
@@ -1117,8 +1119,9 @@
                                     const filterDate = (dateItem) => {
                                         if (dashboardTimeRange === 'all') return true;
                                         let d;
-                                        if (dateItem?.toDate) d = dateItem.toDate(); // Timestamp Firebase
-                                        else d = new Date(dateItem); // String
+                                        // Detectar si es Timestamp de Firebase o String de fecha
+                                        if (dateItem?.toDate) d = dateItem.toDate(); 
+                                        else d = new Date(dateItem);
                                         
                                         if (dashboardTimeRange === 'month') return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
                                         if (dashboardTimeRange === 'year') return d.getFullYear() === now.getFullYear();
@@ -1128,7 +1131,7 @@
                                     const fMatches = matches.filter(m => filterDate(m.date));
                                     const fPlayers = players.filter(p => filterDate(p.createdAt));
 
-                                    // 2. CÁLCULOS
+                                    // 2. CÁLCULOS GÉNERO
                                     const calcGender = (arr) => {
                                         const total = arr.length || 1;
                                         const h = arr.filter(x => x.gender === 'Hombres').length;
@@ -1139,10 +1142,23 @@
                                     const genMatches = calcGender(fMatches);
                                     const genPlayers = calcGender(fPlayers);
 
+                                    // 3. CÁLCULOS NEGOCIO
                                     const totalM = fMatches.length;
                                     const challenges = fMatches.filter(m => m.isChallenge || m.type === 'rival').length;
                                     const challengePct = totalM > 0 ? Math.round((challenges / totalM) * 100) : 0;
                                     const premiumTotal = fMatches.filter(m => m.isPromoted).length + fPlayers.filter(p => p.isPromoted).length;
+
+                                    // 4. CÁLCULOS DE EDAD (DEMOGRAFÍA)
+                                    const ageStats = adminData.allUsersList.reduce((acc, u) => {
+                                        if (!u.birthDate) { acc['Desconocido'] = (acc['Desconocido'] || 0) + 1; return acc; }
+                                        const age = calculateAge(u.birthDate);
+                                        if (age < 20) acc['Sub-20'] = (acc['Sub-20'] || 0) + 1;
+                                        else if (age < 30) acc['20-30'] = (acc['20-30'] || 0) + 1;
+                                        else if (age < 40) acc['30-40'] = (acc['30-40'] || 0) + 1;
+                                        else acc['+40'] = (acc['+40'] || 0) + 1;
+                                        return acc;
+                                    }, {});
+                                    const totalUsersWithAge = adminData.allUsersList.length || 1;
 
                                     return (
                                         <div className="space-y-6">
@@ -1166,23 +1182,42 @@
                                                 </select>
                                             </div>
 
-                                            {/* KPIs PRINCIPALES */}
+                                            {/* ESTRUCTURA DEL CLUB (EQUIPOS) */}
                                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                                 <div className="bg-[#1a1a1a] p-3 rounded border border-gray-700 text-center">
-                                                    <div className="text-[10px] text-gray-400 uppercase font-bold">Partidos</div>
-                                                    <div className="text-2xl font-black text-white">{totalM}</div>
+                                                    <div className="text-[10px] text-gray-400 uppercase font-bold">Total Equipos</div>
+                                                    <div className="text-2xl font-black text-white">{allTeamsList.length}</div>
                                                 </div>
                                                 <div className="bg-[#1a1a1a] p-3 rounded border border-gray-700 text-center">
-                                                    <div className="text-[10px] text-gray-400 uppercase font-bold">Jugadores Nuevos</div>
-                                                    <div className="text-2xl font-black text-yellow-400">{fPlayers.length}</div>
+                                                    <div className="text-[10px] text-gray-400 uppercase font-bold">Total Capitanes</div>
+                                                    <div className="text-2xl font-black text-yellow-400">{allTeamsList.length}</div>
+                                                </div>
+                                                <div className="bg-[#1a1a1a] p-3 rounded border border-gray-700 text-center">
+                                                    <div className="text-[10px] text-gray-400 uppercase font-bold">Total Jugadores</div>
+                                                    <div className="text-2xl font-black text-blue-400">{adminData.totalUsers}</div>
                                                 </div>
                                                 <div className="bg-[#1a1a1a] p-3 rounded border border-gray-700 text-center">
                                                     <div className="text-[10px] text-gray-400 uppercase font-bold">Tasa Desafíos</div>
-                                                    <div className="text-2xl font-black text-blue-400">{challengePct}%</div>
+                                                    <div className="text-2xl font-black text-[#00ff55]">{challengePct}%</div>
                                                 </div>
-                                                <div className="bg-[#1a1a1a] p-3 rounded border border-gray-700 text-center">
-                                                    <div className="text-[10px] text-gray-400 uppercase font-bold">Premium</div>
-                                                    <div className="text-2xl font-black text-[#00ff55]">{premiumTotal}</div>
+                                            </div>
+
+                                            {/* DEMOGRAFÍA DE EDAD (NUEVO) */}
+                                            <div className="bg-[#1a1a1a] p-4 rounded border border-gray-700 shadow-lg">
+                                                <h4 className="text-white text-xs font-bold uppercase mb-4 flex items-center gap-2"><Users size={14} className="text-[#00ff55]"/> Demografía por Edad</h4>
+                                                <div className="space-y-3">
+                                                    {Object.entries(ageStats).map(([range, count]) => (
+                                                        <div key={range}>
+                                                            <div className="flex justify-between text-[10px] text-gray-300 mb-1">
+                                                                <span className="font-bold">{range}</span>
+                                                                <span>{count} Usuarios</span>
+                                                            </div>
+                                                            <div className="w-full bg-gray-800 rounded-full h-1.5 overflow-hidden">
+                                                                <div style={{width: (count/totalUsersWithAge)*100 + '%'}} className="h-full bg-purple-500 rounded-full"></div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                    {Object.keys(ageStats).length === 0 && <div className="text-gray-500 text-xs italic text-center">Faltan datos de fecha de nacimiento</div>}
                                                 </div>
                                             </div>
 
