@@ -1029,7 +1029,14 @@
                         {/* VISTA ADMIN (SOLO VISIBLE SI SOS ADMIN Y ESTÁS EN ESTA VISTA) */}
                         {view === 'admin' && isAdmin && (
                             <div className="lg:col-span-12 space-y-6">
-                                <div className="bg-[#1a1a1a] p-4 rounded text-center border-b-2 border-[#00ff55]">
+                                <div className="bg-[#1a1a1a] p-4 rounded text-center border-b-2 border-[#00ff55] relative">
+                                    <button 
+                                        onClick={() => setView('profile')} 
+                                        className="absolute left-4 top-4 text-gray-400 hover:text-[#00ff55] flex flex-col items-center"
+                                    >
+                                        <ArrowLeft size={20} />
+                                        <span className="text-[8px] font-bold uppercase">Volver</span>
+                                    </button>
                                     <h2 className="text-2xl font-black text-white italic">PANEL DE COMANDO</h2>
                                     <p className="text-gray-400 text-xs">Gestión y Estadísticas</p>
                                 </div>
@@ -1199,7 +1206,7 @@
                                                         <div>
                                                             <div className={`font-bold text-xs uppercase flex items-center gap-2 ${nameStyle}`}>
                                                                 {p.name}
-                                                                {p.isPromoted && <span className="text-[8px] bg-yellow-400 text-black px-1 rounded font-black">★ DESTACADO</span>}
+                                                                {p.isPromoted && <span className="text-[8px] bg-yellow-400 text-black px-1 rounded font-black">★ DESTADACO</span>}
                                                             </div>
                                                             <div className="mt-0.5"><StarRating rating={p.rating} /></div>
                                                             <div className="text-[10px] text-gray-500 mt-0.5">{p.position} | {p.level} | {p.gender}</div>
@@ -1243,17 +1250,11 @@
                         
                         {/* VISTAS EXTRAS: TEAM, PROFILE... (Mantenidas igual) */}
                         {view === 'team' && (
-<div className="bg-[#1a1a1a] p-4 rounded text-center border-b-2 border-[#00ff55] relative">
-    <button 
-        onClick={() => setView('profile')} 
-        className="absolute left-4 top-4 text-gray-400 hover:text-[#00ff55] flex flex-col items-center"
-    >
-        <ArrowLeft size={20} />
-        <span className="text-[8px] font-bold uppercase">Volver</span>
-    </button>
-    <h2 className="text-2xl font-black text-white italic">PANEL DE COMANDO</h2>
-    <p className="text-gray-400 text-xs">Gestión y Estadísticas</p>
-</div>
+                            <div className="lg:col-span-12">
+                                <div className="bg-[#1a1a1a] p-4 rounded text-white text-center">
+                                    <h2 className="text-2xl font-black italic text-[#00ff55] mb-4">MI EQUIPO</h2>
+                                    {myTeam ? (
+                                        <div>
                                             {/* Cabecera del Equipo con LOGO EDITABLE */}
                                             <div className="flex items-center justify-center gap-3 mb-6 border-b border-gray-700 pb-4 relative">
                                                  <div className="relative group w-24 h-24">
