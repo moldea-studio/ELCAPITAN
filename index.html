@@ -341,6 +341,18 @@
 
             // Computed
             const isAdmin = user && ADMIN_EMAILS.includes(user.email);
+            // --- ADMIN: CONTAR USUARIOS REALES ---
+            useEffect(() => {
+                if (!db || !user || !isAdmin) return;
+                const unsub = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'users'), (s) => {
+                     // s.size nos da la cantidad directa de documentos
+                     setAdminData({ 
+                        totalUsers: s.size, 
+                        allUsersList: s.docs.map(d => ({ uid: d.id, ...d.data() })) 
+                     });
+                });
+                return () => unsub();
+            }, [db, user, isAdmin]);
             
             // FIX: LISTAS UNIFICADAS PARA MOSTRAR CORRECTAMENTE EL HISTORIAL O EL FEED
             const myOrganizedMatches = historyEnabled ? myFullHistoryMatches : matches.filter(m => m.createdBy === user?.uid); 
