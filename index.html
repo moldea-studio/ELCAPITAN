@@ -17,15 +17,22 @@
     <!-- CONFIGURACIÓN DE ÍCONOS REALES -->
     <script>
         (function() {
-            const iconUrl = "https://i.imgur.com/l2fbNNt.jpeg";
+            // ⚠️ IMPORTANTE: Pega aquí el link de tu imagen JPG nueva
+            // Agregamos '?v=3' al final para obligar al celular a actualizar la imagen sí o sí
+            const iconUrl = "https://TU_LINK_DE_IMAGEN_AQUI.jpg?v=3"; 
+            
             document.getElementById('apple-icon').href = iconUrl;
             document.getElementById('favicon').href = iconUrl;
+            
             const manifest = {
                 "name": "El Capitán",
                 "short_name": "El Capitán",
                 "start_url": ".",
                 "display": "standalone",
-                "background_color": "#111827",
+                
+                // ✅ AQUÍ ESTÁ EL COLOR EXACTO DE TU PHOTOSHOP
+                "background_color": "#00281d", 
+                
                 "theme_color": "#00ff55",
                 "orientation": "portrait",
                 "icons": [
@@ -33,6 +40,7 @@
                     { "src": iconUrl, "sizes": "512x512", "type": "image/png" }
                 ]
             };
+            
             const blob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
             document.getElementById('manifest-placeholder').setAttribute('href', URL.createObjectURL(blob));
         })();
