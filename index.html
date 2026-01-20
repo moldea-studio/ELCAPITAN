@@ -321,12 +321,70 @@
             const [playerPostulationGender, setPlayerPostulationGender] = useState('Hombres');
             const [isPostulationPromoted, setIsPostulationPromoted] = useState(false);
             
+            // ESTADO PARA EL FILTRO DEL DASHBOARD (NUEVO)
+            const [dashboardTimeRange, setDashboardTimeRange] = useState('all');
+
             // Edit States
             const [isEditingNickname, setIsEditingNickname] = useState(false);
             const [isEditingPosition, setIsEditingPosition] = useState(false);
             const [nicknameInput, setNicknameInput] = useState('');
+            const [birthDateInput, setBirthDateInput] = useState(''); // NUEVO: EDAD
             const [isEditingTeamName, setIsEditingTeamName] = useState(false);
             const [teamNameInput, setTeamNameInput] = useState('');
+
+            // HELPER EDAD
+            const calculateAge = (dob) => {
+                if (!dob) return null;
+                const diff = Date.now() - new Date(dob).getTime();
+                const ageDate = new Date(diff); 
+                return Math.abs(ageDate.getUTCFullYear() - 1970);
+            };
+
+            // Search States
+            const [searchQuery, setSearchQuery] = useState('');
+            const [searchResults, setSearchResults] = useState([]);
+            const [teamSearchQuery, setTeamSearchQuery] = useState('');
+            const [teamSearchResults, setTeamSearchResults] = useState([]);
+            
+            const [confirmation, setConfirmation] = useState({ show: false, text: '', action: null });
+            const [deferredPrompt, setDeferredPrompt] = useState(null);
+            
+            const [pendingLogoFile, setPendingLogoFile] = useState(null);
+
+            // Computed
+            const isAdmin = user && ADMIN_EMAILS.includes(user.email);
+            
+            // --- ADMIN: CONTAR USUARIOS REALES ---
+            useEffect(() => {
+                if (!db || !user || !isAdmin) return;
+                const unsub = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'users'), (s) => {
+                     setAdminData({ 
+                        totalUsers: s.size, 
+                        allUsersList: s.docs.map(d => ({ uid: d.id, ...d.data() })) 
+                     });
+                });
+                return () => unsub();
+            }, [db, user, isAdmin]);
+
+            // Sincronizar input de fecha con el perfil (NUEVO)
+            useEffect(() => {
+                if(userProfile?.birthDate) setBirthDateInput(userProfile.birthDate);
+                if(userProfile?.nickname) setNicknameInput(userProfile.nickname);
+            }, [userProfile, isEditingNickname]);
+
+            // ... (AQUÍ SIGUE EL RESTO DE TUS LISTAS Y CONTADORES, NO LOS TOQUES) ...
+            // BAJA HASTA ENCONTRAR "confirmUpdateNickname" Y REEMPLÁZALA POR ESTA:
+
+            const confirmUpdateNickname = async () => {
+                 await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.uid), { 
+                     nickname: nicknameInput,
+                     birthDate: birthDateInput, // GUARDAR FECHA
+                     lastNicknameUpdate: serverTimestamp() 
+                 });
+                setUserProfile({ ...userProfile, nickname: nicknameInput, birthDate: birthDateInput, lastNicknameUpdate: Timestamp.now() });
+                setIsEditingNickname(false);
+                if (myPlayerProfile) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'players', myPlayerProfile.id), { name: nicknameInput });
+            };
 
             // Search States
             const [searchQuery, setSearchQuery] = useState('');
